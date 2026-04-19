@@ -6,8 +6,35 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+function sanitizeArticleFields(data: any): any {
+  if (!data || typeof data !== 'object') return data
+  if (Array.isArray(data)) return data.map(sanitizeArticleFields)
+  const out: any = {}
+  for (const [k, v] of Object.entries(data)) {
+    if ((k === 'key_points' || k === 'entities') && typeof v === 'string') {
+      try {
+        out[k] = JSON.parse(v)
+      } catch {
+        out[k] = []
+      }
+    } else if (k === 'article' && v && typeof v === 'object') {
+      out[k] = sanitizeArticleFields(v)
+    } else if (k === 'items' && Array.isArray(v)) {
+      out[k] = v.map(sanitizeArticleFields)
+    } else {
+      out[k] = v
+    }
+  }
+  return out
+}
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.data && typeof response.data === 'object') {
+      response.data = sanitizeArticleFields(response.data)
+    }
+    return response
+  },
   (error) => {
     const detail = error.response?.data?.detail
     const message =

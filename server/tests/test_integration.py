@@ -1,4 +1,5 @@
 """End-to-end integration tests across modules."""
+import json
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 
@@ -296,3 +297,43 @@ def test_scheduler_invalid_cron_does_not_crash(client, db):
     except Exception:
         # Any other exception is acceptable (e.g. scheduler not started)
         pass
+
+
+def test_video_upload_json_dumps_field(client, db):
+    """Regression: json_dumps_field is imported at module top, not locally after use."""
+    import tempfile
+    import os
+    from src.db.models import VideoTranscript
+    from src.core.video_processor import VideoProcessor
+    from src.core.db_utils import json_dumps_field
+
+    # Verify json_dumps_field is accessible at module level (not just locally)
+    import src.core.video_processor as vp_mod
+    assert hasattr(vp_mod, 'json_dumps_field'), "json_dumps_field must be a module-level import"
+
+    # Simulate the exact serialization path used in process_video_upload
+    segments = [{"start": 0, "end": 1, "text": "hello"}]
+    serialized = json_dumps_field(segments)
+    assert isinstance(serialized, str)
+    assert json.loads(serialized) == segments
+
+    # Verify it can be stored and retrieved through the model
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+        f.write(b"fake audio data")
+        temp_path = f.name
+
+    try:
+        vt = VideoTranscript(
+            video_path=temp_path,
+            transcript_text="test",
+            segments=json_dumps_field(segments),
+            language="zh",
+        )
+        db.add(vt)
+        db.commit()
+        db.refresh(vt)
+
+        assert isinstance(vt.segments, str)
+        assert json.loads(vt.segments) == segments
+    finally:
+        os.unlink(temp_path)
