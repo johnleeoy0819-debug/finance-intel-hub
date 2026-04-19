@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.api import crawler, articles, upload, search, stats, skill, graph, publications, categories
+from src.api import crawler, articles, upload, search, stats, skill, graph, publications, categories, wiki, lint
+from src.api import settings as user_settings
 from src.core.scheduler import start_scheduler, shutdown_scheduler
 from src.db.seed import seed_categories
 from src.db.engine import SessionLocal
@@ -43,6 +44,9 @@ app.include_router(skill.router, prefix="/api/skill", tags=["skill"])
 app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
 app.include_router(publications.router, prefix="/api/publications", tags=["publications"])
 app.include_router(categories.router, prefix="/api", tags=["categories"])
+app.include_router(wiki.router, prefix="/api/wiki", tags=["wiki"])
+app.include_router(lint.router, prefix="/api/lint", tags=["lint"])
+app.include_router(user_settings.router, prefix="/api/settings", tags=["settings"])
 
 
 @app.get("/api/health")

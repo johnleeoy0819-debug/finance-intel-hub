@@ -341,6 +341,14 @@ def crawl_source(source_id: int) -> list[int]:
             # Save tags via association table
             save_article_tags(db, article.id, processed.get("tags", []))
 
+            # Update backlinks for related articles
+            related = db.query(Article).filter(
+                Article.id != article.id,
+                Article.status == "completed"
+            ).order_by(Article.created_at.desc()).limit(10).all()
+            for ra in related:
+                update_backlinks(db, ra.id, [article.id])
+
             # Build knowledge edges via AI relation analysis
             try:
                 relations = processor.analyze_relations(

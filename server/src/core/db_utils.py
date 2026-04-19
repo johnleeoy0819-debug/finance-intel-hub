@@ -92,3 +92,22 @@ def save_article_tags(db: Session, article_id: int, tag_names: List[str]) -> Non
         if not exists:
             db.add(ArticleTag(article_id=article_id, tag_id=tag.id))
             db.commit()
+
+
+def update_backlinks(db: Session, article_id: int, citing_article_ids: List[int]) -> None:
+    """Update backlinks for an article."""
+    from src.db.models import Article
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        return
+    backlinks = json_loads_field(article.backlinks) or []
+    existing_ids = {b.get("id") for b in backlinks if isinstance(b, dict)}
+    for cid in citing_article_ids:
+        if cid in existing_ids:
+            continue
+        citing = db.query(Article).filter(Article.id == cid).first()
+        if citing:
+            backlinks.append({"id": citing.id, "title": citing.title})
+            existing_ids.add(cid)
+    article.backlinks = json_dumps_field(backlinks)
+    db.commit()

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Article, Source, UploadTask, DashboardStats, Category, Tag } from '../types'
+import type { Article, Source, UploadTask, DashboardStats, Category, Tag, WikiPage, LintReport } from '../types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -118,8 +118,26 @@ export const categoriesApi = {
   list: () => api.get<Category[]>('/categories').then(r => r.data),
 }
 
+export const lintApi = {
+  list: () => api.get<LintReport[]>('/lint/reports').then(r => r.data),
+  summary: () => api.get<{ total_open: number; by_type: Record<string, number> }>('/lint/summary').then(r => r.data),
+  run: () => api.post('/lint/run').then(r => r.data),
+  update: (id: number, status: string) => api.put(`/lint/reports/${id}`, { status }).then(r => r.data),
+}
+
+export const wikiApi = {
+  list: () => api.get<WikiPage[]>('/wiki').then(r => r.data),
+  get: (slug: string) => api.get<WikiPage>(`/wiki/${slug}`).then(r => r.data),
+  compile: (topic: string, article_ids?: number[]) => api.post('/wiki/compile', { topic, article_ids }).then(r => r.data),
+}
+
 export const tagsApi = {
   list: (q?: string) => api.get<Tag[]>('/tags', { params: { q } }).then(r => r.data),
+}
+
+export const settingsApi = {
+  getRules: () => api.get<{ rules: string }>('/settings/rules').then(r => r.data),
+  updateRules: (rules: string) => api.put('/settings/rules', { rules }).then(r => r.data),
 }
 
 export const skillApi = {

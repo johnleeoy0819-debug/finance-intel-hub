@@ -17,6 +17,7 @@ export interface Article {
   mindmap?: string
   status: string
   created_at: string
+  backlinks?: { id: number; title: string; reason: string }[]
 }
 
 export interface Category {
@@ -122,4 +123,27 @@ export interface Publication {
   publication_date?: string
   citation_count: number
   created_at: string
+}
+
+export interface WikiPage {
+  id: number
+  title: string
+  slug: string
+  topic: string
+  content?: string
+  source_article_ids?: string
+  article_count: number
+  compiled_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface LintReport {
+  id: number
+  lint_type: string
+  severity: string
+  details?: string
+  status: string
+  created_at: string
+  resolved_at?: string
 }

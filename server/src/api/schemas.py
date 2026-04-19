@@ -1,5 +1,5 @@
 """Pydantic request/response schemas for API validation."""
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -29,6 +29,8 @@ class ArticleResponse(BaseModel):
     mindmap: Optional[str] = None
     status: str
     created_at: Optional[str] = None
+
+    backlinks: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

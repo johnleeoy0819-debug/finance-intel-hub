@@ -23,6 +23,8 @@ def start_scheduler() -> BackgroundScheduler:
     if not scheduler.running:
         scheduler.start()
         _load_jobs()
+        add_wiki_compile_job()
+        add_lint_job()
     return scheduler
 
 
@@ -60,6 +62,36 @@ def add_crawl_job(source_id: int, cron: str):
         trigger=CronTrigger.from_crontab(cron),
         id=job_id,
         args=[source_id],
+        replace_existing=True,
+    )
+
+
+def add_wiki_compile_job():
+    """Add daily auto-compilation job for top topics."""
+    scheduler = get_scheduler()
+    job_id = "wiki_auto_compile"
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+    from src.core.wiki_compiler import auto_compile_top_topics
+    scheduler.add_job(
+        auto_compile_top_topics,
+        trigger=CronTrigger(hour=2, minute=0),  # 每天凌晨 2 点
+        id=job_id,
+        replace_existing=True,
+    )
+
+
+def add_lint_job():
+    """Add weekly lint audit job."""
+    scheduler = get_scheduler()
+    job_id = "lint_audit"
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+    from src.core.lint_engine import run_all_lints
+    scheduler.add_job(
+        run_all_lints,
+        trigger=CronTrigger(day_of_week="sun", hour=3, minute=0),  # 每周日凌晨 3 点
+        id=job_id,
         replace_existing=True,
     )
 

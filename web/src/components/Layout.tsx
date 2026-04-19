@@ -3,10 +3,13 @@ import { Link, useLocation } from 'react-router-dom'
 const NAV_ITEMS = [
   { path: '/', label: '仪表盘' },
   { path: '/library', label: '知识库' },
+  { path: '/wiki', label: 'Wiki' },
   { path: '/chat', label: 'AI 助手' },
+  { path: '/lint', label: '体检' },
   { path: '/upload', label: '上传' },
   { path: '/sources', label: '数据源' },
   { path: '/publications', label: '文献' },
+  { path: '/settings', label: '设置' },
 ]
 
 interface Props {

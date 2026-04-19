@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import json
 
 from src.db.engine import get_db
 from src.db.models import Article, Correction, Category, Tag, ArticleTag
 from src.api.schemas import ArticleListParams, CorrectionCreate, ArticleResponse
 from src.core.db_utils import json_loads_field
+from src.core.backlinks import update_all_backlinks, get_backlinks_for_article
 
 router = APIRouter()
 
@@ -31,6 +33,13 @@ def _article_to_response(db: Session, article: Article) -> ArticleResponse:
         src = db.query(Source).filter(Source.id == article.source_id).first()
         source_name = src.name if src else None
 
+    backlinks = []
+    if article.backlinks:
+        try:
+            backlinks = json.loads(article.backlinks)
+        except json.JSONDecodeError:
+            backlinks = []
+
     return ArticleResponse(
         id=article.id,
         title=article.title,
@@ -49,6 +58,7 @@ def _article_to_response(db: Session, article: Article) -> ArticleResponse:
         mindmap=article.mindmap,
         status=article.status,
         created_at=article.created_at.isoformat() if article.created_at else None,
+        backlinks=backlinks,
     )
 
 
@@ -136,3 +146,10 @@ def correct_article(article_id: int, correction: CorrectionCreate, db: Session =
 
     db.commit()
     return {"ok": True}
+
+
+@router.post("/backlinks/update")
+def update_backlinks(db: Session = Depends(get_db)):
+    """Manually trigger backlinks recomputation for all articles."""
+    count = update_all_backlinks(db)
+    return {"updated": count}

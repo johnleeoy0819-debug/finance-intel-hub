@@ -11,6 +11,22 @@ class AIClient:
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.loader = PromptLoader()
 
+    def _get_user_rules(self) -> str:
+        """Fetch user rules from database."""
+        try:
+            from src.db.engine import SessionLocal
+            from src.db.models import UserRule
+            db = SessionLocal()
+            try:
+                rule = db.query(UserRule).first()
+                if rule and rule.rules:
+                    return f"\n\n【用户自定义规则】\n{rule.rules}"
+            finally:
+                db.close()
+        except Exception:
+            pass
+        return ""
+
     def run_prompt(self, name: str, model: str = None, fewshot_field: str = None, **kwargs) -> str:
         """Load a prompt by name, render it with variables, and call OpenAI API.
 
@@ -22,8 +38,12 @@ class AIClient:
 
         use_model = model or prompt.get("model", settings.OPENAI_MODEL_FAST)
 
+        # Inject user rules into system prompt
+        user_rules = self._get_user_rules()
+        system_content = rendered["system"] + user_rules
+
         messages: List[Dict[str, str]] = [
-            {"role": "system", "content": rendered["system"]},
+            {"role": "system", "content": system_content},
         ]
 
         # Inject few-shot examples from corrections if enabled

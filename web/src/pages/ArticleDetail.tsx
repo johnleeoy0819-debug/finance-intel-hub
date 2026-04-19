@@ -181,6 +181,27 @@ export default function ArticleDetail() {
           )}
         </div>
 
+        {article.backlinks && article.backlinks.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-4">
+            <h3 className="font-semibold text-gray-800 mb-3">被引用</h3>
+            <ul className="space-y-2">
+              {article.backlinks.map((link) => (
+                <li key={link.id}>
+                  <Link
+                    to={`/article/${link.id}`}
+                    className="text-primary-600 hover:underline text-sm"
+                  >
+                    {link.title}
+                  </Link>
+                  {link.reason && (
+                    <span className="text-xs text-gray-400 ml-2">{link.reason}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex flex-col items-center gap-3">
           {feedbackSent && (
             <span className="text-sm text-green-600">反馈已提交，感谢！</span>

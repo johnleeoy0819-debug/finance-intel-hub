@@ -54,6 +54,7 @@ class Article(Base):
     error_message = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    backlinks = Column(Text)
 
 
 class Tag(Base):
@@ -160,6 +161,39 @@ class Correction(Base):
     original_value = Column(Text)
     corrected_value = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WikiPage(Base):
+    __tablename__ = "wiki_pages"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String, nullable=False)
+    slug = Column(String, nullable=False, unique=True)
+    topic = Column(String, nullable=False)
+    content = Column(Text)
+    source_article_ids = Column(Text)
+    article_count = Column(Integer, default=0)
+    compiled_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class LintReport(Base):
+    __tablename__ = "lint_reports"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lint_type = Column(String, nullable=False)
+    severity = Column(String, default="warning")
+    details = Column(Text)
+    status = Column(String, default="open")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime)
+
+
+class UserRule(Base):
+    __tablename__ = "user_rules"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rules = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ─────────────────────────────────────────────
