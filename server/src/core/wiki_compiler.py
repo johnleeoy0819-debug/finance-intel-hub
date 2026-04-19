@@ -9,6 +9,7 @@ from src.core.ai_client import AIClient
 from src.core.db_utils import json_dumps_field
 from src.db.engine import SessionLocal
 from src.db.models import Article, WikiPage
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ def compile_topic(topic: str, article_ids: Optional[List[int]] = None) -> Dict[s
         system_prompt, user_prompt = _build_compile_prompt(articles, topic)
 
         response = ai.client.chat.completions.create(
-            model="gpt-4o",
+            model=settings.OPENAI_MODEL_PRIMARY,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
