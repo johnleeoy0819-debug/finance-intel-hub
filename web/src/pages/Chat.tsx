@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, ThumbsUp, ThumbsDown, BookOpen, Save } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { skillApi, wikiApi } from '../api/client'
 import Layout from '../components/Layout'
 
@@ -24,6 +25,7 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [savedToWiki, setSavedToWiki] = useState<Set<string>>(new Set())
+  const [errorToast, setErrorToast] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -71,7 +73,8 @@ export default function Chat() {
         prev.map((m) => (m.id === msgId ? { ...m, feedbackSent: true } : m))
       )
     } catch {
-      // silently fail
+      setErrorToast('反馈提交失败，请稍后重试')
+      setTimeout(() => setErrorToast(null), 3000)
     }
   }
 
@@ -83,7 +86,8 @@ export default function Chat() {
       await wikiApi.writeback(title, msg.content)
       setSavedToWiki((prev) => new Set(prev).add(msgId))
     } catch {
-      // silently fail
+      setErrorToast('保存到 Wiki 失败，请稍后重试')
+      setTimeout(() => setErrorToast(null), 3000)
     }
   }
 
@@ -117,9 +121,9 @@ export default function Chat() {
                       {msg.strategy === 'wiki' ? 'Wiki' : msg.strategy === 'fulltext' ? '全文' : 'RAG'}
                     </span>
                     {msg.wikiSlug && (
-                      <a href={`/wiki/${msg.wikiSlug}`} className="text-[10px] text-primary-600 hover:underline ml-1.5">
+                      <Link to={`/wiki/${msg.wikiSlug}`} className="text-[10px] text-primary-600 hover:underline ml-1.5">
                         查看综述
-                      </a>
+                      </Link>
                     )}
                   </div>
                 )}
@@ -130,13 +134,13 @@ export default function Chat() {
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {msg.sources.map((s) => (
-                        <a
+                        <Link
                           key={s.id}
-                          href={`/article/${s.id}`}
+                          to={`/article/${s.id}`}
                           className="text-xs px-2 py-0.5 bg-gray-50 text-primary-600 rounded hover:underline"
                         >
                           {s.title}
-                        </a>
+                        </Link>
                       ))}
                     </div>
                   </div>
@@ -202,6 +206,11 @@ export default function Chat() {
           </div>
         </div>
       </div>
+      {errorToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-red-600 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
+          {errorToast}
+        </div>
+      )}
     </Layout>
   )
 }

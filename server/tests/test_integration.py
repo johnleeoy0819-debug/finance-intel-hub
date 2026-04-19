@@ -1,6 +1,8 @@
 """End-to-end integration tests across modules."""
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
+
+import pytest
 from sqlalchemy.orm import sessionmaker
 
 from src.db.models import Article, KnowledgeEdge, WikiPage, LintReport, UserRule
@@ -260,3 +262,37 @@ def test_missing_concepts_lint(client, db, api_engine):
     concepts = {m["concept"] for m in missing}
     assert "量子计算" in concepts or "quantum-computing" in concepts
     assert "人工智能" in concepts
+
+
+def test_wiki_compiler_datetime_import(client, db, api_engine):
+    """Regression: wiki_compiler must have datetime imported to set compiled_at."""
+    article = Article(title="Datetime Test", status="completed", summary="s", clean_content="c")
+    db.add(article)
+    db.commit()
+
+    TestSession = sessionmaker(bind=api_engine)
+    with patch("src.core.wiki_compiler.SessionLocal", TestSession):
+        with patch("src.core.wiki_compiler.AIClient") as MockAI:
+            MockAI.return_value.client.chat.completions.create.return_value = _mock_ai_response("# Report")
+            from src.core.wiki_compiler import compile_topic
+            result = compile_topic("datetime-test", [article.id])
+
+    assert result["status"] == "completed"
+    # Verify compiled_at was set (datetime must be available)
+    response = client.get(f"/api/wiki/{result['slug']}")
+    assert response.status_code == 200
+    wiki = response.json()
+    assert wiki["updated_at"] is not None
+
+
+def test_scheduler_invalid_cron_does_not_crash(client, db):
+    """Regression: scheduler must handle invalid cron without NameError."""
+    from src.core.scheduler import add_crawl_job
+    # Invalid cron expression should be caught and logged, not crash
+    try:
+        add_crawl_job(9999, "invalid cron")
+    except NameError as e:
+        pytest.fail(f"scheduler.add_crawl_job raised NameError on invalid cron: {e}")
+    except Exception:
+        # Any other exception is acceptable (e.g. scheduler not started)
+        pass

@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -5,6 +6,8 @@ from apscheduler.triggers.cron import CronTrigger
 from src.db.engine import SessionLocal
 from src.db.models import Source
 from src.core.crawler import crawl_source
+
+logger = logging.getLogger(__name__)
 
 _scheduler: Optional[BackgroundScheduler] = None
 
