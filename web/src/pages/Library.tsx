@@ -7,32 +7,28 @@ import SearchBar from '../components/SearchBar'
 import CategoryTree from '../components/CategoryTree'
 
 export default function Library() {
-  const { articles, articleTotal, setArticles, selectedCategory, setSelectedCategory, categories, setCategories } = useStore()
+  const { articles, articleTotal, setArticles, selectedCategory, setSelectedCategory, categories } = useStore()
   const [page, setPage] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const limit = 20
 
   useEffect(() => {
-    // Load categories from API (mock for now)
-    setCategories([
-      { id: 1, name: '宏观经济', slug: 'macro', parent_id: undefined, sort_order: 0 },
-      { id: 2, name: '货币政策', slug: 'monetary', parent_id: 1, sort_order: 0 },
-      { id: 3, name: '财政政策', slug: 'fiscal', parent_id: 1, sort_order: 1 },
-      { id: 4, name: '金融市场', slug: 'finance', parent_id: undefined, sort_order: 1 },
-      { id: 5, name: '股票市场', slug: 'stock', parent_id: 4, sort_order: 0 },
-      { id: 6, name: '债券市场', slug: 'bond', parent_id: 4, sort_order: 1 },
-      { id: 7, name: '行业分析', slug: 'industry', parent_id: undefined, sort_order: 2 },
-      { id: 8, name: '公司研究', slug: 'company', parent_id: undefined, sort_order: 3 },
-      { id: 9, name: '监管政策', slug: 'regulation', parent_id: undefined, sort_order: 4 },
-      { id: 10, name: '商业模型', slug: 'business', parent_id: undefined, sort_order: 5 },
-    ])
-
+    setError(null)
+    setLoading(true)
     articlesApi.list({ category_id: selectedCategory || undefined, limit, offset: page * limit })
       .then((r) => setArticles(r.items, r.total))
-  }, [selectedCategory, page, setArticles, setCategories])
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [selectedCategory, page, setArticles])
 
   const handleSearch = (q: string) => {
-    // TODO: implement search
-    console.log('search:', q)
+    setError(null)
+    setLoading(true)
+    articlesApi.list({ tag: q, limit, offset: 0 })
+      .then((r) => { setPage(0); setArticles(r.items, r.total) })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
   }
 
   return (
@@ -63,32 +59,45 @@ export default function Library() {
         </aside>
 
         <div className="flex-1">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+              {error}
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">全部文章 ({articleTotal})</h2>
           </div>
-          <div className="space-y-3">
-            {articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-          {articleTotal > limit && (
-            <div className="flex justify-center gap-2 mt-6">
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
-              >
-                上一页
-              </button>
-              <span className="px-3 py-1">{page + 1}</span>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={(page + 1) * limit >= articleTotal}
-                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
-              >
-                下一页
-              </button>
-            </div>
+
+          {loading ? (
+            <div className="py-10 text-center text-gray-500">加载中...</div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {articles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </div>
+              {articleTotal > limit && (
+                <div className="flex justify-center gap-2 mt-6">
+                  <button
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    上一页
+                  </button>
+                  <span className="px-3 py-1">{page + 1}</span>
+                  <button
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={(page + 1) * limit >= articleTotal}
+                    className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

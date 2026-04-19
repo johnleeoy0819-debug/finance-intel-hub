@@ -5,18 +5,19 @@ from typing import List, Optional
 from src.db.engine import get_db
 from src.db.models import SkillFeedback, Correction, Article
 from src.core.feedback import build_fewshot_samples
+from src.api.schemas import FeedbackCreate
 
 router = APIRouter()
 
 
 @router.post("/feedback")
-def submit_feedback(feedback: dict, db: Session = Depends(get_db)):
+def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db)):
     fb = SkillFeedback(
-        skill_name=feedback.get("skill_name", "econ-master"),
-        query=feedback["query"],
-        response_summary=feedback.get("response_summary"),
-        rating=feedback.get("rating"),
-        comment=feedback.get("comment"),
+        skill_name=feedback.skill_name or "econ-master",
+        query=feedback.query,
+        response_summary=feedback.response_summary,
+        rating=feedback.rating,
+        comment=feedback.comment,
     )
     db.add(fb)
     db.commit()

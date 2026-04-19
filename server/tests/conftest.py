@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

@@ -6,6 +6,20 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const detail = error.response?.data?.detail
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((d: any) => d.msg || d).join('; ')
+          : error.message || '请求失败，请稍后重试'
+    return Promise.reject(new Error(message))
+  }
+)
+
 export const articlesApi = {
   list: (params?: { category_id?: number; tag?: string; limit?: number; offset?: number }) =>
     api.get<{ total: number; items: Article[] }>('/articles', { params }).then(r => r.data),

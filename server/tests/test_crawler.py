@@ -14,46 +14,62 @@ from src.core.crawler import (
 )
 
 
+def _mock_httpx_response(status_code: int = 200, text: str = "", json_data: dict = None):
+    """Helper to build a mock httpx Response."""
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.text = text
+    resp.json = MagicMock(return_value=json_data or {})
+    resp.raise_for_status = MagicMock()
+    return resp
+
+
 # ───────── Jina Reader ─────────
 class TestJinaReaderDriver:
-    @patch("src.core.crawler.requests.get")
-    def test_crawl_returns_markdown(self, mock_get):
-        mock_get.return_value = MagicMock(
-            status_code=200,
+    @pytest.mark.asyncio
+    async def test_crawl_returns_markdown(self):
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_httpx_response(
             text=(
                 "Title: Test Article\n"
                 "URL Source: http://example.com\n"
                 "Markdown Content:\n# Hello\n\nThis is content.\n\n"
                 "[link](https://other.com/page)"
             ),
-        )
-        driver = JinaReaderDriver()
-        result = driver.crawl("http://example.com")
-        assert result.title == "Test Article"
-        assert "Hello" in result.content
-        assert result.driver_used == "jina"
-        assert "https://other.com/page" in result.links
+        ))
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            driver = JinaReaderDriver()
+            result = await driver.crawl("http://example.com")
+            assert result.title == "Test Article"
+            assert "Hello" in result.content
+            assert result.driver_used == "jina"
+            assert "https://other.com/page" in result.links
 
 
 # ───────── Firecrawl ─────────
 class TestFirecrawlDriver:
-    @patch("src.core.crawler.requests.post")
-    def test_crawl_success(self, mock_post):
-        mock_post.return_value = MagicMock(
-            status_code=200,
-            json=lambda: {
+    @pytest.mark.asyncio
+    async def test_crawl_success(self):
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=_mock_httpx_response(
+            json_data={
                 "data": {
                     "markdown": "# Title\n\nBody text.",
                     "html": "<h1>Title</h1><p>Body text.</p>",
                     "metadata": {"title": "Fire Title"},
                 }
             },
-        )
-        driver = FirecrawlDriver(api_key="test_key")
-        result = driver.crawl("http://example.com")
-        assert result.title == "Fire Title"
-        assert "Body text." in result.content
-        assert result.driver_used == "firecrawl"
+        ))
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            driver = FirecrawlDriver(api_key="test_key")
+            result = await driver.crawl("http://example.com")
+            assert result.title == "Fire Title"
+            assert "Body text." in result.content
+            assert result.driver_used == "firecrawl"
 
 
 # ───────── Playwright (mocked) ─────────
@@ -110,12 +126,12 @@ class TestSmartCrawler:
 
         crawler = SmartCrawler()
         crawler.drivers["playwright"] = MagicMock()
-        crawler.drivers["playwright"].crawl.return_value = CrawlResult(
+        crawler.drivers["playwright"].crawl = AsyncMock(return_value=CrawlResult(
             url="http://test.com",
             title="Test",
             content="content",
             driver_used="playwright",
-        )
+        ))
 
         result = await crawler.crawl("http://test.com")
         assert result.driver_used == "playwright"
@@ -128,12 +144,12 @@ class TestSmartCrawler:
 
         crawler = SmartCrawler()
         crawler.drivers["playwright"] = MagicMock()
-        crawler.drivers["playwright"].crawl.return_value = CrawlResult(
+        crawler.drivers["playwright"].crawl = AsyncMock(return_value=CrawlResult(
             url="http://test.com",
             title="Test",
             content="content",
             driver_used="playwright",
-        )
+        ))
 
         result = await crawler.crawl("http://test.com")
         assert mock_jina.call_count == 3

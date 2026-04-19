@@ -7,11 +7,28 @@ import type { Article } from '../types'
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>()
   const [article, setArticle] = useState<Article | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'summary' | 'original' | 'mindmap'>('summary')
 
   useEffect(() => {
-    if (id) articlesApi.get(Number(id)).then(setArticle)
+    if (!id) return
+    setError(null)
+    articlesApi.get(Number(id))
+      .then(setArticle)
+      .catch((err) => setError(err.message))
   }, [id])
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <p className="text-red-600 mb-2">加载失败</p>
+          <p className="text-gray-500 text-sm mb-4">{error}</p>
+          <Link to="/library" className="text-primary-600 hover:underline text-sm">返回知识库</Link>
+        </div>
+      </div>
+    )
+  }
 
   if (!article) return <div className="p-10 text-center">加载中...</div>
 

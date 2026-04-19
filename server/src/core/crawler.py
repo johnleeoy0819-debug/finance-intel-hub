@@ -110,13 +110,12 @@ class PlaywrightDriver:
 class JinaReaderDriver:
     """https://r.jina.ai/http://URL — fast static extraction."""
 
-    JINA_ENDPOINT = "https://r.jina.ai/http://"
-
-    def crawl(self, url: str) -> CrawlResult:
+    async def crawl(self, url: str) -> CrawlResult:
         jina_url = f"https://r.jina.ai/http://{url}"
-        r = requests.get(jina_url, timeout=30)
-        r.raise_for_status()
-        text = r.text
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(jina_url)
+            r.raise_for_status()
+            text = r.text
 
         # Parse Jina output: Title: X\nURL Source: X\nMarkdown Content:\n...
         title = ""
@@ -151,15 +150,15 @@ class FirecrawlDriver:
         from src.config import settings
         self.api_key = api_key or settings.FIRECRAWL_API_KEY
 
-    def crawl(self, url: str) -> CrawlResult:
-        r = requests.post(
-            "https://api.firecrawl.dev/v1/scrape",
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-            json={"url": url, "formats": ["markdown", "html"]},
-            timeout=60,
-        )
-        r.raise_for_status()
-        data = r.json().get("data", {})
+    async def crawl(self, url: str) -> CrawlResult:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                "https://api.firecrawl.dev/v1/scrape",
+                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                json={"url": url, "formats": ["markdown", "html"]},
+            )
+            r.raise_for_status()
+            data = r.json().get("data", {})
         md = data.get("markdown", "")
         html = data.get("html", "")
         title = data.get("metadata", {}).get("title", "")
@@ -226,9 +225,9 @@ class SmartCrawler:
             return list(self.NEWS_ORDER)
         return list(self.DEFAULT_ORDER)
 
-    def _random_delay(self):
+    async def _random_delay(self):
         delay = random.uniform(self.DELAY_MIN, self.DELAY_MAX)
-        time.sleep(delay)
+        await asyncio.sleep(delay)
 
     async def crawl(self, url: str) -> CrawlResult:
         order = self._select_order(url)
@@ -238,12 +237,9 @@ class SmartCrawler:
             driver = self.drivers[driver_name]
             for attempt in range(1, self.MAX_RETRIES + 1):
                 try:
-                    self._random_delay()
+                    await self._random_delay()
                     logger.info(f"[{driver_name}] attempt {attempt}/{self.MAX_RETRIES} for {url}")
-                    if asyncio.iscoroutinefunction(driver.crawl):
-                        result = await driver.crawl(url)
-                    else:
-                        result = driver.crawl(url)
+                    result = await driver.crawl(url)
                     logger.info(f"[{driver_name}] success for {url}")
                     return result
                 except Exception as e:
@@ -275,6 +271,8 @@ def crawl_source(source_id: int) -> list[int]:
     from src.core.processor import ArticleProcessor
 
     db = SessionLocal()
+    crawler = SmartCrawler()
+    loop = asyncio.new_event_loop()
     try:
         source = db.query(Source).filter(Source.id == source_id).first()
         if not source or not source.is_active:
@@ -288,7 +286,6 @@ def crawl_source(source_id: int) -> list[int]:
         else:
             urls = [source.url]
 
-        crawler = SmartCrawler()
         processor = ArticleProcessor()
         new_ids: list[int] = []
 
@@ -297,9 +294,7 @@ def crawl_source(source_id: int) -> list[int]:
                 continue
 
             try:
-                loop = asyncio.new_event_loop()
                 result = loop.run_until_complete(crawler.crawl(url))
-                loop.close()
             except Exception as e:
                 logger.warning(f"Crawl failed for {url}: {e}")
                 continue
@@ -339,6 +334,11 @@ def crawl_source(source_id: int) -> list[int]:
         return new_ids
     finally:
         db.close()
+        try:
+            loop.run_until_complete(crawler.close())
+        except Exception as e:
+            logger.warning(f"Error closing crawler: {e}")
+        loop.close()
 
 
 # ────────────────────────

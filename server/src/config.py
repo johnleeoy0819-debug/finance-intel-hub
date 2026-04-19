@@ -1,5 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from functools import lru_cache
 
 
@@ -17,8 +18,8 @@ PROJECT_ROOT = _find_project_root()
 
 
 class Settings(BaseSettings):
-    # AI
-    OPENAI_API_KEY: str = ""
+    # AI — fail fast if missing
+    OPENAI_API_KEY: str = Field(..., min_length=1)
     OPENAI_MODEL_PRIMARY: str = "gpt-4o"
     OPENAI_MODEL_FAST: str = "gpt-4o-mini"
     
@@ -34,7 +35,8 @@ class Settings(BaseSettings):
     STORAGE_PATH: str = str(PROJECT_ROOT / "data")
     
     # Server
-    SERVER_PORT: int = 8000
+    SERVER_PORT: int = Field(default=8000, ge=1, le=65535)
+    CORS_ORIGINS: str = "http://localhost:5173"
     
     # Skill
     SKILL_FEEDBACK_ENABLED: bool = True

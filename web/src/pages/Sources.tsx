@@ -7,25 +7,45 @@ import type { Source } from '../types'
 export default function Sources() {
   const [sources, setSources] = useState<Source[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', url: '', driver: 'firecrawl', schedule: '0 */2 * * *' })
+  const [form, setForm] = useState({ name: '', url: '', driver: 'playwright', schedule: '0 */2 * * *' })
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { sourcesApi.list().then(setSources) }, [])
+  useEffect(() => {
+    sourcesApi.list()
+      .then(setSources)
+      .catch((err) => setError(err.message))
+  }, [])
 
   const handleCreate = async () => {
-    const created = await sourcesApi.create(form)
-    setSources([...sources, created])
-    setShowForm(false)
-    setForm({ name: '', url: '', driver: 'firecrawl', schedule: '0 */2 * * *' })
+    setError(null)
+    try {
+      const created = await sourcesApi.create(form)
+      setSources([...sources, created])
+      setShowForm(false)
+      setForm({ name: '', url: '', driver: 'playwright', schedule: '0 */2 * * *' })
+    } catch (err: any) {
+      setError(err.message)
+    }
   }
 
   const handleDelete = async (id: number) => {
-    await sourcesApi.delete(id)
-    setSources(sources.filter((s) => s.id !== id))
+    setError(null)
+    try {
+      await sourcesApi.delete(id)
+      setSources(sources.filter((s) => s.id !== id))
+    } catch (err: any) {
+      setError(err.message)
+    }
   }
 
   const handleTrigger = async (id: number) => {
-    const result = await sourcesApi.trigger(id)
-    alert(`采集完成，新增 ${result.article_ids.length} 篇文章`)
+    setError(null)
+    try {
+      const result = await sourcesApi.trigger(id)
+      alert(`采集完成，新增 ${result.article_ids.length} 篇文章`)
+    } catch (err: any) {
+      setError(err.message)
+    }
   }
 
   return (
@@ -41,6 +61,12 @@ export default function Sources() {
       </header>
 
       <main className="max-w-4xl mx-auto p-6">
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+            {error}
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">数据源管理</h2>
           <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">

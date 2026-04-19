@@ -27,3 +27,4 @@ playwright==1.40.0
 firecrawl-py==0.0.13
 tiktoken==0.5.1
 numpy==1.26.2
+apscheduler==3.10.4

@@ -6,16 +6,27 @@ import type { UploadTask } from '../types'
 
 export default function Upload() {
   const [tasks, setTasks] = useState<UploadTask[]>([])
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { uploadApi.tasks().then(setTasks) }, [])
+  useEffect(() => {
+    uploadApi.tasks()
+      .then(setTasks)
+      .catch((err) => setError(err.message))
+  }, [])
 
   const handleUpload = async (files: FileList) => {
+    setError(null)
     const newTasks: UploadTask[] = []
     for (const file of Array.from(files)) {
-      const task = await uploadApi.upload(file)
-      newTasks.push(task)
+      try {
+        const task = await uploadApi.upload(file)
+        newTasks.push(task)
+      } catch (err: any) {
+        setError(err.message)
+        break
+      }
     }
-    setTasks([...newTasks, ...tasks])
+    setTasks((prev) => [...newTasks, ...prev])
   }
 
   const statusLabel: Record<string, string> = { pending: '待处理', processing: '处理中', completed: '已完成', failed: '失败' }
@@ -34,6 +45,12 @@ export default function Upload() {
       </header>
 
       <main className="max-w-4xl mx-auto p-6">
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+            {error}
+          </div>
+        )}
+
         <h2 className="text-lg font-semibold mb-4">上传中心</h2>
         <FileUploader onUpload={handleUpload} />
 
