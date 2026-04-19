@@ -145,6 +145,12 @@ export const operationsApi = {
     api.get<{ total: number; items: any[] }>('/operations', { params }).then(r => r.data),
 }
 
+export const exportApi = {
+  wiki: () => api.post('/export/wiki').then(r => r.data),
+  all: () => api.post('/export/all').then(r => r.data),
+  git: () => api.post('/export/git').then(r => r.data),
+}
+
 export const skillApi = {
   chat: (query: string) => api.post<{ query: string; answer: string; strategy: string; wiki_slug?: string; sources: { id: number; title: string }[] }>('/skill/chat', { query }).then(r => r.data),
   feedback: (data: { skill_name?: string; query: string; response_summary?: string; rating?: number; comment?: string }) =>

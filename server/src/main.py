@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.api import crawler, articles, upload, search, stats, skill, graph, publications, categories, wiki, lint, operations
+from src.api import crawler, articles, upload, search, stats, skill, graph, publications, categories, wiki, lint, operations, export
 from src.api import settings as user_settings
 from src.core.scheduler import start_scheduler, shutdown_scheduler
 from src.db.seed import seed_categories
@@ -48,6 +48,7 @@ app.include_router(wiki.router, prefix="/api/wiki", tags=["wiki"])
 app.include_router(lint.router, prefix="/api/lint", tags=["lint"])
 app.include_router(user_settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(operations.router, prefix="/api/operations", tags=["operations"])
+app.include_router(export.router, prefix="/api/export", tags=["export"])
 
 
 @app.get("/api/health")

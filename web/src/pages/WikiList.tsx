@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, FileText, List } from 'lucide-react'
-import { wikiApi } from '../api/client'
+import { BookOpen, FileText, List, Download } from 'lucide-react'
+import { wikiApi, exportApi } from '../api/client'
 import Layout from '../components/Layout'
 import type { WikiPage } from '../types'
 
@@ -9,6 +9,19 @@ export default function WikiList() {
   const [pages, setPages] = useState<WikiPage[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportApi.wiki()
+      alert('Wiki 导出完成')
+    } catch (err: any) {
+      alert(`导出失败：${err.message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -32,6 +45,13 @@ export default function WikiList() {
             >
               <List className="w-4 h-4" /> 索引
             </Link>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="text-sm text-primary-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" /> {exporting ? '导出中' : '导出'}
+            </button>
             <span className="text-sm text-gray-500">{pages.length} 个主题</span>
           </div>
         </div>
