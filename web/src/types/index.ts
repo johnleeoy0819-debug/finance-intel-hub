@@ -58,3 +58,24 @@ export interface DashboardStats {
   pending_count: number
   source_count: number
 }
+
+export interface GraphNode {
+  id: number
+  title: string
+  category?: number
+  sentiment?: string
+}
+
+export interface GraphLink {
+  source: number
+  target: number
+  type: string
+  strength?: number
+  reason?: string
+}
+
+export interface GraphData {
+  center_id?: number
+  nodes: GraphNode[]
+  links: GraphLink[]
+}

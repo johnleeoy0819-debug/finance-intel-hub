@@ -54,3 +54,31 @@ export const uploadApi = {
   },
   tasks: () => api.get<UploadTask[]>('/upload/tasks').then(r => r.data),
 }
+
+export interface GraphNode {
+  id: number
+  title: string
+  category?: number
+  sentiment?: string
+}
+
+export interface GraphLink {
+  source: number
+  target: number
+  type: string
+  strength?: number
+  reason?: string
+}
+
+export interface GraphData {
+  center_id?: number
+  nodes: GraphNode[]
+  links: GraphLink[]
+}
+
+export const graphApi = {
+  article: (id: number, depth?: number) =>
+    api.get<GraphData>(`/graph/articles/${id}`, { params: { depth } }).then(r => r.data),
+  global: (limit?: number) =>
+    api.get<GraphData>('/graph/global', { params: { limit } }).then(r => r.data),
+}

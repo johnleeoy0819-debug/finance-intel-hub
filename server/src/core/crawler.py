@@ -329,6 +329,29 @@ def crawl_source(source_id: int) -> list[int]:
             db.refresh(article)
             new_ids.append(article.id)
 
+            # Build knowledge edges via AI relation analysis
+            try:
+                relations = processor.analyze_relations(
+                    article.id,
+                    article.title,
+                    article.summary or "",
+                    str(article.primary_category_id or ""),
+                    processed.get("tags", []),
+                )
+                for rel in relations:
+                    edge = KnowledgeEdge(
+                        source_article_id=article.id,
+                        target_article_id=rel.get("target_article_id"),
+                        relation_type=rel.get("relation_type", "theme"),
+                        strength=rel.get("strength", 0.5),
+                        reason=rel.get("reason", ""),
+                    )
+                    db.add(edge)
+                if relations:
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Relation analysis failed for article {article.id}: {e}")
+
         source.last_crawled_at = datetime.utcnow()
         db.commit()
         return new_ids

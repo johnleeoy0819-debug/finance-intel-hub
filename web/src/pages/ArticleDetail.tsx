@@ -1,22 +1,38 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ThumbsUp, ThumbsDown } from 'lucide-react'
-import { articlesApi } from '../api/client'
-import type { Article } from '../types'
+import { articlesApi, graphApi } from '../api/client'
+import KnowledgeGraph from '../components/KnowledgeGraph'
+import type { Article, GraphData } from '../types'
 
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [article, setArticle] = useState<Article | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'summary' | 'original' | 'mindmap'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'original' | 'mindmap' | 'graph'>('summary')
+  const [graphData, setGraphData] = useState<GraphData | null>(null)
+  const [graphLoading, setGraphLoading] = useState(false)
 
   useEffect(() => {
     if (!id) return
     setError(null)
+    setActiveTab('summary')
+    setGraphData(null)
     articlesApi.get(Number(id))
       .then(setArticle)
       .catch((err) => setError(err.message))
   }, [id])
+
+  useEffect(() => {
+    if (activeTab === 'graph' && id && !graphData) {
+      setGraphLoading(true)
+      graphApi.article(Number(id), 1)
+        .then(setGraphData)
+        .catch((err) => setError(err.message))
+        .finally(() => setGraphLoading(false))
+    }
+  }, [activeTab, id, graphData])
 
   if (error) {
     return (
@@ -57,15 +73,20 @@ export default function ArticleDetail() {
           </div>
 
           <div className="flex gap-2 border-b mb-4">
-            {(['summary', 'original', 'mindmap'] as const).map((tab) => (
+            {([
+              { key: 'summary' as const, label: 'AI摘要' },
+              { key: 'original' as const, label: '原文' },
+              { key: 'mindmap' as const, label: '思维导图' },
+              { key: 'graph' as const, label: '知识图谱' },
+            ]).map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                  activeTab === tab ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500'
+                  activeTab === tab.key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500'
                 }`}
               >
-                {tab === 'summary' ? 'AI摘要' : tab === 'original' ? '原文' : '思维导图'}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -95,6 +116,23 @@ export default function ArticleDetail() {
           {activeTab === 'mindmap' && (
             <div className="prose max-w-none whitespace-pre-wrap text-gray-700 font-mono bg-gray-50 p-4 rounded">
               {article.mindmap || '暂无思维导图'}
+            </div>
+          )}
+
+          {activeTab === 'graph' && (
+            <div>
+              {graphLoading ? (
+                <div className="py-10 text-center text-gray-500">加载知识图谱...</div>
+              ) : graphData ? (
+                <KnowledgeGraph
+                  data={graphData}
+                  width={720}
+                  height={420}
+                  onNodeClick={(nid) => navigate(`/articles/${nid}`)}
+                />
+              ) : (
+                <div className="text-center text-gray-400 py-10">暂无知识图谱数据</div>
+              )}
             </div>
           )}
         </div>
