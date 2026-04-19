@@ -4,14 +4,30 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
+from sqlalchemy import func
+
 from src.db.engine import get_db
 from src.db.models import SkillFeedback, Correction, Article, WikiPage, UserRule
 from src.core.feedback import build_fewshot_samples
 from src.api.schemas import FeedbackCreate
 from src.core.vector_store import VectorStore
 from src.core.ai_client import AIClient
+from src.config import settings
 
 router = APIRouter()
+
+
+def _get_user_rules(db: Session) -> str:
+    """Fetch user-defined rules from database."""
+    rule = db.query(UserRule).first()
+    if rule and rule.rules:
+        return f"\n\n【用户自定义规则】\n{rule.rules}"
+    return ""
+
+
+def _build_system_prompt(base: str, user_rules: str) -> str:
+    """Inject user rules into system prompt."""
+    return base + user_rules
 
 
 class ChatRequest(BaseModel):
@@ -62,19 +78,17 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     ai = AIClient()
     query = req.query
 
+    user_rules = _get_user_rules(db)
+
     # ── Strategy 1: Wiki Page (highest quality, least tokens) ──
+    # Match when query contains wiki topic/title (reverse ilike)
     wiki_page = db.query(WikiPage).filter(
-        WikiPage.topic.ilike(f"%{query[:20]}%")
+        (func.instr(query, WikiPage.topic) > 0) |
+        (func.instr(query, WikiPage.title) > 0)
     ).order_by(WikiPage.article_count.desc()).first()
 
-    if not wiki_page:
-        # Try broader match on title/content
-        wiki_page = db.query(WikiPage).filter(
-            WikiPage.title.ilike(f"%{query[:20]}%")
-        ).order_by(WikiPage.article_count.desc()).first()
-
     if wiki_page:
-        system_prompt = f"""你是"经济大师"，一位专业的财经知识库助手。
+        base_prompt = f"""你是"经济大师"，一位专业的财经知识库助手。
 
 规则：
 1. 基于以下 Wiki 综述回答用户问题
@@ -84,12 +98,13 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
 【Wiki 综述】
 {wiki_page.content}
 """
+        system_prompt = _build_system_prompt(base_prompt, user_rules)
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query},
         ]
         response = ai.client.chat.completions.create(
-            model="gpt-4o",
+            model=settings.OPENAI_MODEL_FAST,
             messages=messages,
             temperature=0.5,
         )
@@ -131,7 +146,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             {"role": "user", "content": query},
         ]
         response = ai.client.chat.completions.create(
-            model="gpt-4o",
+            model=settings.OPENAI_MODEL_FAST,
             messages=messages,
             temperature=0.5,
         )
@@ -161,7 +176,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         for s in fewshot_samples:
             fewshot_text += f"- 输入：{s['input'][:100]}...\n  正确输出：{s['output'][:100]}...\n"
 
-    system_prompt = f"""你是"经济大师"，一位专业的财经知识库助手。你会基于知识库中的文章回答用户问题。
+    base_prompt = f"""你是"经济大师"，一位专业的财经知识库助手。你会基于知识库中的文章回答用户问题。
 
 规则：
 1. 优先使用知识库中的信息回答，如果没有直接相关内容，可以基于通用财经知识回答，但要说明。
@@ -172,6 +187,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
 
 知识库相关内容：
 {context}"""
+    system_prompt = _build_system_prompt(base_prompt, user_rules)
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -179,7 +195,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     ]
 
     response = ai.client.chat.completions.create(
-        model="gpt-4o",
+        model=settings.OPENAI_MODEL_FAST,
         messages=messages,
         temperature=0.5,
     )

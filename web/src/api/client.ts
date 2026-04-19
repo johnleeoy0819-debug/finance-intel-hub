@@ -141,7 +141,7 @@ export const settingsApi = {
 }
 
 export const skillApi = {
-  chat: (query: string) => api.post<{ query: string; answer: string; sources: { id: number; title: string }[] }>('/skill/chat', { query }).then(r => r.data),
+  chat: (query: string) => api.post<{ query: string; answer: string; strategy: string; wiki_slug?: string; sources: { id: number; title: string }[] }>('/skill/chat', { query }).then(r => r.data),
   feedback: (data: { skill_name?: string; query: string; response_summary?: string; rating?: number; comment?: string }) =>
     api.post('/skill/feedback', data).then(r => r.data),
   examples: (field?: string) => api.get('/skill/examples', { params: { field } }).then(r => r.data),

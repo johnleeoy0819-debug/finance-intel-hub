@@ -8,6 +8,8 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   sources?: { id: number; title: string }[]
+  strategy?: string
+  wikiSlug?: string
   feedbackSent?: boolean
 }
 
@@ -41,6 +43,8 @@ export default function Chat() {
         role: 'assistant',
         content: res.answer,
         sources: res.sources,
+        strategy: res.strategy,
+        wikiSlug: res.wiki_slug,
       }
       setMessages((prev) => [...prev, assistantMsg])
     } catch (err: any) {
@@ -88,6 +92,24 @@ export default function Chat() {
                   : 'bg-white shadow text-gray-700'
               }`}>
                 <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                {msg.strategy && msg.id !== 'welcome' && (
+                  <div className="mt-1.5 mb-1">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      msg.strategy === 'wiki'
+                        ? 'bg-purple-50 text-purple-600'
+                        : msg.strategy === 'fulltext'
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'bg-gray-50 text-gray-500'
+                    }`}>
+                      {msg.strategy === 'wiki' ? 'Wiki' : msg.strategy === 'fulltext' ? '全文' : 'RAG'}
+                    </span>
+                    {msg.wikiSlug && (
+                      <a href={`/wiki/${msg.wikiSlug}`} className="text-[10px] text-primary-600 hover:underline ml-1.5">
+                        查看综述
+                      </a>
+                    )}
+                  </div>
+                )}
                 {msg.sources && msg.sources.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-gray-100">
                     <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">
