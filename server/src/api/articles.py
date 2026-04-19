@@ -104,6 +104,13 @@ def delete_article(article_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Article not found")
     db.delete(article)
     db.commit()
+    # Sync vector index deletion
+    try:
+        from src.core.vector_store import VectorStore
+        VectorStore().delete_article(article_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Vector index deletion failed for article {article_id}: {e}")
     return {"ok": True}
 
 

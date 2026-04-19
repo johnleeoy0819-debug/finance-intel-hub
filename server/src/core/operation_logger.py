@@ -1,5 +1,6 @@
 """Operation logger — append-only log of key system events."""
 import json
+import logging
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -28,8 +29,10 @@ def log_operation(
         )
         db.add(entry)
         db.commit()
-    except Exception:
+    except Exception as e:
         db.rollback()
+        logger = logging.getLogger(__name__)
+        logger.error(f"Operation log failed for {operation_type}: {e}")
     finally:
         if close_db:
             db.close()

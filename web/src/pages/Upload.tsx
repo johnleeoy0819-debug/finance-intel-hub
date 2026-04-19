@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, Send } from 'lucide-react'
+import { Send } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import FileUploader from '../components/FileUploader'
 import { uploadApi } from '../api/client'
 import Layout from '../components/Layout'

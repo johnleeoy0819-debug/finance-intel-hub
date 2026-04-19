@@ -94,9 +94,18 @@ export default function ArticleDetail() {
     </Layout>
   )
 
-  const keyPoints = article.key_points
-    ? (typeof article.key_points === 'string' ? JSON.parse(article.key_points) : article.key_points)
-    : []
+  let keyPoints: string[] = []
+  if (article.key_points) {
+    if (typeof article.key_points === 'string') {
+      try {
+        keyPoints = JSON.parse(article.key_points)
+      } catch {
+        keyPoints = []
+      }
+    } else if (Array.isArray(article.key_points)) {
+      keyPoints = article.key_points
+    }
+  }
 
   return (
     <Layout>

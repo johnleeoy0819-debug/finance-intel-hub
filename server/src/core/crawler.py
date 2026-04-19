@@ -270,6 +270,7 @@ def crawl_source(source_id: int) -> list[int]:
     from src.db.models import Article, Source, KnowledgeEdge
     from src.core.processor import ArticleProcessor
     from src.core.wiki_compiler import _cascade_wiki_updates
+    from src.core.backlinks import update_backlinks
 
     db = SessionLocal()
     crawler = SmartCrawler()

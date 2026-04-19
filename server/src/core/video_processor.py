@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 from src.config import settings
+from src.core.db_utils import json_dumps_field
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ class VideoProcessor:
                 return {"status": "irrelevant", "transcript_id": vt.id}
 
             # 4. Resolve categories
-            from src.core.db_utils import resolve_category_ids, save_article_tags, json_dumps_field
+            from src.core.db_utils import resolve_category_ids, save_article_tags
             primary_id, secondary_id = resolve_category_ids(
                 db,
                 processed.get("primary_category"),

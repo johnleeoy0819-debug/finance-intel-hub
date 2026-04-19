@@ -13,6 +13,7 @@ from src.core.processor import ArticleProcessor
 from src.core.video_processor import VideoProcessor
 from src.core.db_utils import resolve_category_ids, save_article_tags, json_dumps_field
 from src.core.wiki_compiler import _cascade_wiki_updates
+from src.core.backlinks import update_backlinks
 from src.db.engine import SessionLocal
 from src.db.models import Article, UploadTask
 

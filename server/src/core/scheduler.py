@@ -53,13 +53,19 @@ def add_crawl_job(source_id: int, cron: str):
     scheduler = get_scheduler()
     job_id = f"crawl_source_{source_id}"
 
+    try:
+        trigger = CronTrigger.from_crontab(cron)
+    except Exception as e:
+        logger.warning(f"Invalid cron expression '{cron}' for source {source_id}: {e}. Skipping job.")
+        return
+
     # Remove existing job if any
     if scheduler.get_job(job_id):
         scheduler.remove_job(job_id)
 
     scheduler.add_job(
         crawl_source,
-        trigger=CronTrigger.from_crontab(cron),
+        trigger=trigger,
         id=job_id,
         args=[source_id],
         replace_existing=True,

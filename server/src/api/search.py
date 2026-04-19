@@ -38,7 +38,8 @@ def fulltext_search(q: str = Query(..., min_length=1), limit: int = Query(defaul
         """)
         results = db.execute(sql, {"query": q, "limit": limit}).fetchall()
     except Exception as e:
-        # Malformed FTS5 query — fall back to simple LIKE search
+        import logging
+        logging.getLogger(__name__).warning(f"FTS5 query failed for '{q}': {e}. Falling back to LIKE search.")
         results = db.execute(
             text("SELECT * FROM articles WHERE title LIKE :query OR summary LIKE :query ORDER BY created_at DESC LIMIT :limit"),
             {"query": f"%{q}%", "limit": limit}

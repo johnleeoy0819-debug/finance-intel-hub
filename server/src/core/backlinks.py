@@ -54,3 +54,32 @@ def get_backlinks_for_article(db: Session, article_id: int) -> List[Dict[str, An
         return json.loads(article.backlinks)
     except json.JSONDecodeError:
         return []
+
+
+def update_backlinks(db: Session, article_id: int, source_article_ids: List[int]) -> None:
+    """Update backlinks for a specific article by adding new source articles."""
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        return
+
+    backlinks = []
+    if article.backlinks:
+        try:
+            backlinks = json.loads(article.backlinks)
+        except json.JSONDecodeError:
+            backlinks = []
+
+    existing_ids = {b["id"] for b in backlinks}
+    for src_id in source_article_ids:
+        if src_id in existing_ids:
+            continue
+        src = db.query(Article).filter(Article.id == src_id).first()
+        if src:
+            backlinks.append({
+                "id": src.id,
+                "title": src.title,
+                "reason": "related article",
+            })
+            existing_ids.add(src.id)
+
+    article.backlinks = json.dumps(backlinks, ensure_ascii=False) if backlinks else None

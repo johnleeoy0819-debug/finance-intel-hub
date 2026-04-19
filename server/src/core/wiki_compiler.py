@@ -6,7 +6,7 @@ import threading
 from typing import List, Dict, Any, Optional
 
 from src.core.ai_client import AIClient
-from src.core.db_utils import json_dumps_field
+from src.core.db_utils import json_dumps_field, json_loads_field
 from src.db.engine import SessionLocal
 from src.db.models import Article, WikiPage
 from src.config import settings
@@ -139,7 +139,7 @@ def compile_topic(topic: str, article_ids: Optional[List[int]] = None) -> Dict[s
             existing.content = content
             existing.source_article_ids = json_dumps_field([a.id for a in articles])
             existing.article_count = len(articles)
-            existing.compiled_at = db.func.now()
+            existing.compiled_at = datetime.utcnow()
             db.commit()
             db.refresh(existing)
             page = existing
@@ -303,7 +303,7 @@ def compile_index() -> Dict[str, Any]:
         if existing:
             existing.title = "Wiki 索引"
             existing.content = content
-            existing.updated_at = db.func.now()
+            existing.updated_at = datetime.utcnow()
         else:
             db.add(WikiPage(
                 title="Wiki 索引",

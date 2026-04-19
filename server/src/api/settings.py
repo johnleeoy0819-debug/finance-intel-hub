@@ -1,6 +1,6 @@
 """Settings API — user rules and preferences."""
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from src.db.engine import get_db
@@ -32,7 +32,7 @@ class RulesResponse(BaseModel):
 
 
 class RulesUpdateRequest(BaseModel):
-    rules: str
+    rules: str = Field(..., max_length=5000)
 
 
 @router.get("/rules", response_model=RulesResponse)

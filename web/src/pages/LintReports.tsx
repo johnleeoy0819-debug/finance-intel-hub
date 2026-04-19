@@ -114,7 +114,14 @@ export default function LintReports() {
         ) : (
           <div className="space-y-3">
             {reports.map((r) => {
-              const details = r.details ? JSON.parse(r.details) : {}
+              let details: any = {}
+              if (r.details) {
+                try {
+                  details = JSON.parse(r.details)
+                } catch {
+                  details = { raw: r.details }
+                }
+              }
               return (
                 <div
                   key={r.id}

@@ -69,7 +69,7 @@ export default function Library() {
             score: item.score ?? undefined,
           }))
           setSearchResults(items)
-          setArticles([], items.length)
+          setArticles(items.map((i) => i.article), items.length)
         })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false))
