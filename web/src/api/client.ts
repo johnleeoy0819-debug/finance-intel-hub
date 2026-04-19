@@ -59,6 +59,7 @@ export const uploadApi = {
     form.append('file', file)
     return api.post<any>('/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
   },
+  uploadUrl: (url: string) => api.post<{ task_id: number; status: string; type: string }>('/upload/url', { url }).then(r => r.data),
   tasks: () => api.get<UploadTask[]>('/upload/tasks').then(r => r.data),
 }
 
@@ -122,6 +123,7 @@ export const tagsApi = {
 }
 
 export const skillApi = {
+  chat: (query: string) => api.post<{ query: string; answer: string; sources: { id: number; title: string }[] }>('/skill/chat', { query }).then(r => r.data),
   feedback: (data: { skill_name?: string; query: string; response_summary?: string; rating?: number; comment?: string }) =>
     api.post('/skill/feedback', data).then(r => r.data),
   examples: (field?: string) => api.get('/skill/examples', { params: { field } }).then(r => r.data),

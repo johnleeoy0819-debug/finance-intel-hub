@@ -1,15 +1,18 @@
 import os
 import shutil
+import threading
 import uuid
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from pathlib import Path
 
-from src.db.engine import get_db
+from src.db.engine import get_db, SessionLocal
 from src.db.models import UploadTask, Article
 from src.config import settings
 from src.core.video_processor import VideoProcessor
 from src.core.processor import ArticleProcessor
+from src.core.url_processor import process_article_url, process_video_url, _is_video_url
 
 router = APIRouter()
 
@@ -88,6 +91,61 @@ def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
 @router.get("/tasks")
 def list_tasks(db: Session = Depends(get_db)):
     return db.query(UploadTask).order_by(UploadTask.created_at.desc()).all()
+
+
+class UrlUploadRequest(BaseModel):
+    url: str
+
+
+@router.post("/url")
+def upload_url(req: UrlUploadRequest, db: Session = Depends(get_db)):
+    """Submit a URL for processing (article or video)."""
+    url = req.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL")
+
+    is_video = _is_video_url(url)
+
+    task = UploadTask(
+        original_filename=url,
+        file_path=url,
+        file_type="video" if is_video else "article",
+        status="processing",
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    def _process():
+        db2 = SessionLocal()
+        try:
+            t = db2.query(UploadTask).filter(UploadTask.id == task.id).first()
+            if is_video:
+                result = process_video_url(url, original_filename=url)
+            else:
+                result = process_article_url(url)
+
+            if result.get("status") == "completed":
+                t.status = "completed"
+                t.article_id = result.get("article_id")
+            elif result.get("status") == "irrelevant":
+                t.status = "completed"
+                t.article_id = None
+            else:
+                t.status = "failed"
+                t.error_message = result.get("error", "Unknown error")
+            db2.commit()
+        except Exception as e:
+            if t:
+                t.status = "failed"
+                t.error_message = str(e)
+                db2.commit()
+        finally:
+            db2.close()
+
+    threading.Thread(target=_process, daemon=True).start()
+
+    return {"task_id": task.id, "status": "processing", "type": "video" if is_video else "article"}
 
 
 @router.get("/tasks/{task_id}")

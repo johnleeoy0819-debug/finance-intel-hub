@@ -1,6 +1,6 @@
-# FinanceIntel Hub
+# Johnlee's KnowledgeBase
 
-个人财经智识库系统 —— 自动采集、AI 整理、结构化存储、智能问答。
+个人知识库系统 —— 自动采集、AI 整理、结构化存储、智能问答。
 
 ## 快速启动
 

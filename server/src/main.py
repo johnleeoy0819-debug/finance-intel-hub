@@ -6,17 +6,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.api import crawler, articles, upload, search, stats, skill, graph, publications, categories
 from src.core.scheduler import start_scheduler, shutdown_scheduler
+from src.db.seed import seed_categories
+from src.db.engine import SessionLocal
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage APScheduler lifecycle with the app."""
+    # Seed default data on startup
+    db = SessionLocal()
+    try:
+        seed_categories(db)
+    finally:
+        db.close()
     start_scheduler()
     yield
     shutdown_scheduler()
 
 
-app = FastAPI(title="FinanceIntel Hub API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Johnlee's KnowledgeBase API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

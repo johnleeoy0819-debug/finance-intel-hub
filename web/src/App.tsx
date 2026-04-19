@@ -5,6 +5,7 @@ import ArticleDetail from './pages/ArticleDetail'
 import Sources from './pages/Sources'
 import Upload from './pages/Upload'
 import Publications from './pages/Publications'
+import Chat from './pages/Chat'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/sources" element={<Sources />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/publications" element={<Publications />} />
+        <Route path="/chat" element={<Chat />} />
       </Routes>
     </div>
   )

@@ -61,7 +61,7 @@ def fetch_arxiv(arxiv_id: str) -> Dict[str, Any]:
 def fetch_doi(doi: str) -> Dict[str, Any]:
     """Fetch metadata from CrossRef API."""
     url = f"https://api.crossref.org/works/{doi}"
-    headers = {"User-Agent": "FinanceIntelHub/1.0 (mailto:admin@example.com)"}
+    headers = {"User-Agent": "JohnleeKnowledgeBase/1.0"}
     resp = requests.get(url, headers=headers, timeout=30)
     resp.raise_for_status()
     data = resp.json()["message"]

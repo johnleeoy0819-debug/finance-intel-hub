@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 const NAV_ITEMS = [
   { path: '/', label: '仪表盘' },
   { path: '/library', label: '知识库' },
+  { path: '/chat', label: 'AI 助手' },
   { path: '/upload', label: '上传' },
   { path: '/sources', label: '数据源' },
   { path: '/publications', label: '文献' },
@@ -19,7 +20,7 @@ export default function Layout({ children, extraHeader }: Props) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold">FinanceIntel Hub</Link>
+        <Link to="/" className="text-xl font-bold">Johnlee's KnowledgeBase</Link>
         <nav className="flex gap-4 text-sm">
           {NAV_ITEMS.map((item) => (
             <Link
