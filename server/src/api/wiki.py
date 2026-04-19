@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from src.db.engine import get_db
 from src.db.models import WikiPage
-from src.core.wiki_compiler import compile_topic_async, auto_compile_top_topics
+from src.core.wiki_compiler import compile_topic_async, auto_compile_top_topics, compile_index
 
 router = APIRouter()
 
@@ -44,6 +44,13 @@ def auto_compile(db: Session = Depends(get_db)):
     """Auto-compile top topics from recent articles."""
     topics = auto_compile_top_topics(days=7, limit=5)
     return {"status": "queued", "topics": topics}
+
+
+@router.post("/index")
+def compile_wiki_index(db: Session = Depends(get_db)):
+    """Manually trigger global wiki index compilation."""
+    result = compile_index()
+    return result
 
 
 @router.delete("/{slug}")

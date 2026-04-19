@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, FileText } from 'lucide-react'
+import { BookOpen, FileText, List } from 'lucide-react'
 import { wikiApi } from '../api/client'
 import Layout from '../components/Layout'
 import type { WikiPage } from '../types'
@@ -25,7 +25,15 @@ export default function WikiList() {
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <BookOpen className="w-5 h-5" /> 知识 Wiki
           </h2>
-          <span className="text-sm text-gray-500">{pages.length} 个主题</span>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/wiki/index"
+              className="text-sm text-primary-600 hover:underline flex items-center gap-1"
+            >
+              <List className="w-4 h-4" /> 索引
+            </Link>
+            <span className="text-sm text-gray-500">{pages.length} 个主题</span>
+          </div>
         </div>
 
         {error && (

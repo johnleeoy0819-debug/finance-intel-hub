@@ -269,6 +269,7 @@ def crawl_source(source_id: int) -> list[int]:
     from src.db.engine import SessionLocal
     from src.db.models import Article, Source, KnowledgeEdge
     from src.core.processor import ArticleProcessor
+    from src.core.wiki_compiler import _cascade_wiki_updates
 
     db = SessionLocal()
     crawler = SmartCrawler()
@@ -340,6 +341,9 @@ def crawl_source(source_id: int) -> list[int]:
 
             # Save tags via association table
             save_article_tags(db, article.id, processed.get("tags", []))
+
+            # Cascade wiki updates
+            _cascade_wiki_updates(article.id)
 
             # Update backlinks for related articles
             related = db.query(Article).filter(

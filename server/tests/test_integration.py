@@ -178,3 +178,63 @@ def test_wiki_compile_chat_flow(client, db, api_engine):
         data = response.json()
         assert data["strategy"] == "wiki"
         assert data["wiki_slug"] == result["slug"]
+
+
+def test_cascade_wiki_updates(client, db, api_engine):
+    """Scenario 5: New article triggers cascading wiki recompile."""
+    # Create a wiki page on "新能源"
+    db.add(WikiPage(
+        title="新能源综合报告",
+        slug="xin-neng-yuan-xing-ye",
+        topic="新能源行业",
+        content="新能源行业内容",
+        article_count=2,
+    ))
+    db.commit()
+
+    # Verify wiki exists
+    response = client.get("/api/wiki/xin-neng-yuan-xing-ye")
+    assert response.status_code == 200
+
+    # Create a new article matching the wiki topic
+    article = Article(
+        title="新能源行业技术突破",
+        status="completed",
+        summary="新能源行业取得重大突破",
+        clean_content="新能源行业内容",
+        primary_category_id=None,
+    )
+    db.add(article)
+    db.commit()
+
+    # Trigger cascade update
+    TestSession = sessionmaker(bind=api_engine)
+    from src.core.wiki_compiler import _cascade_wiki_updates
+    with patch("src.core.wiki_compiler.SessionLocal", TestSession):
+        with patch("src.core.wiki_compiler.compile_topic_async") as mock_compile:
+            _cascade_wiki_updates(article.id)
+            mock_compile.assert_called_once()
+
+
+def test_wiki_index_compilation(client, db, api_engine):
+    """Scenario 6: Compile global wiki index."""
+    # Create wiki pages
+    db.add(WikiPage(title="Page A", slug="page-a", topic="a", content="Content A", article_count=2))
+    db.add(WikiPage(title="Page B", slug="page-b", topic="b", content="Content B", article_count=3))
+    db.commit()
+
+    TestSession = sessionmaker(bind=api_engine)
+    with patch("src.core.wiki_compiler.SessionLocal", TestSession):
+        from src.core.wiki_compiler import compile_index
+        result = compile_index()
+
+    assert result["status"] == "completed"
+    assert result["pages_count"] == 2
+
+    # Verify index page exists
+    response = client.get("/api/wiki/index")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Wiki 索引"
+    assert "Page A" in data["content"]
+    assert "Page B" in data["content"]

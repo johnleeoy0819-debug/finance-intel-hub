@@ -224,6 +224,99 @@ def auto_compile_top_topics(days: int = 7, limit: int = 5) -> List[str]:
                     compile_topic_async(topic, article_ids)
                     compiled_topics.append(topic)
 
+        # Also compile global index
+        compile_index()
+
         return compiled_topics
+    finally:
+        db.close()
+
+
+def _find_related_wikis(article, db) -> List[WikiPage]:
+    """Find wiki pages related to an article by category/topic/entities/title overlap."""
+    conditions = []
+    # Match by primary category name
+    if article.primary_category_id:
+        from src.db.models import Category
+        cat = db.query(Category).filter(Category.id == article.primary_category_id).first()
+        if cat:
+            conditions.append(WikiPage.topic.ilike(f"%{cat.name}%"))
+    # Match by entities
+    if article.entities:
+        try:
+            entities = json_loads_field(article.entities) or []
+            for entity in entities[:3]:
+                conditions.append(WikiPage.topic.ilike(f"%{entity}%"))
+                conditions.append(WikiPage.title.ilike(f"%{entity}%"))
+        except Exception:
+            pass
+    # Match by title keywords (reverse: wiki topic in article title/summary)
+    text = f"{article.title or ''} {article.summary or ''}"
+    wikis = db.query(WikiPage).all()
+    matched = set()
+    for wiki in wikis:
+        if wiki.topic and wiki.topic in text:
+            matched.add(wiki.id)
+        if wiki.title and wiki.title in text:
+            matched.add(wiki.id)
+    if matched:
+        conditions.append(WikiPage.id.in_(list(matched)))
+    if not conditions:
+        return []
+    from sqlalchemy import or_
+    return db.query(WikiPage).filter(or_(*conditions)).all()
+
+
+def _cascade_wiki_updates(article_id: int) -> None:
+    """Recompile wiki pages related to the given article."""
+    db = SessionLocal()
+    try:
+        article = db.query(Article).filter(Article.id == article_id).first()
+        if not article or article.status != "completed":
+            return
+        related_wikis = _find_related_wikis(article, db)
+        for wiki in related_wikis:
+            logger.info(f"Cascading wiki update for '{wiki.topic}' due to article {article_id}")
+            compile_topic_async(wiki.topic)
+            log_operation(
+                "wiki_compiled",
+                target_type="wiki_page",
+                target_id=wiki.id,
+                details={"trigger": "cascade", "article_id": article_id, "topic": wiki.topic},
+            )
+    finally:
+        db.close()
+
+
+def compile_index() -> Dict[str, Any]:
+    """Compile a global index page of all wiki pages."""
+    db = SessionLocal()
+    try:
+        pages = db.query(WikiPage).filter(WikiPage.slug != "index").order_by(WikiPage.updated_at.desc()).all()
+        lines = ["# Wiki 索引", "", "| 主题 | 文章数 | 更新时间 |", "|---|---|---|"]
+        for p in pages:
+            updated = p.updated_at.strftime("%Y-%m-%d") if p.updated_at else "-"
+            lines.append(f"| [{p.title}](/wiki/{p.slug}) | {p.article_count} | {updated} |")
+        content = "\n".join(lines)
+
+        existing = db.query(WikiPage).filter(WikiPage.slug == "index").first()
+        if existing:
+            existing.title = "Wiki 索引"
+            existing.content = content
+            existing.updated_at = db.func.now()
+        else:
+            db.add(WikiPage(
+                title="Wiki 索引",
+                slug="index",
+                topic="Index",
+                content=content,
+                article_count=len(pages),
+            ))
+        db.commit()
+        log_operation("wiki_compiled", target_type="wiki_page", target_id="index", details={"title": "Wiki 索引", "pages_count": len(pages)})
+        return {"status": "completed", "pages_count": len(pages)}
+    except Exception as e:
+        logger.error(f"Index compilation failed: {e}")
+        return {"status": "error", "message": str(e)}
     finally:
         db.close()

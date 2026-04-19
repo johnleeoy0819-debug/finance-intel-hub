@@ -12,6 +12,7 @@ from src.core.crawler import SmartCrawler, CrawlError
 from src.core.processor import ArticleProcessor
 from src.core.video_processor import VideoProcessor
 from src.core.db_utils import resolve_category_ids, save_article_tags, json_dumps_field
+from src.core.wiki_compiler import _cascade_wiki_updates
 from src.db.engine import SessionLocal
 from src.db.models import Article, UploadTask
 
@@ -114,6 +115,9 @@ def process_article_url(url: str) -> Dict[str, Any]:
             db.refresh(article)
 
             save_article_tags(db, article.id, processed.get("tags", []))
+
+            # Cascade wiki updates
+            _cascade_wiki_updates(article.id)
 
             # Update backlinks for related articles
             related = db.query(Article).filter(
