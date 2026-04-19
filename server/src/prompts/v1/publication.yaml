@@ -1,0 +1,39 @@
+version: 1
+name: publication_parser
+description: 对书籍章节或论文进行深度解析
+model: gpt-4o
+inputs:
+  - name: content
+    required: true
+  - name: pub_type
+    required: true
+    description: "book_chapter | paper | report"
+  - name: title
+    required: true
+  - name: authors
+    required: true
+system: |
+  你是一名学术文献分析专家。请对给定的书籍章节或论文内容进行深度解析。
+
+  输出格式（严格JSON）：
+  {
+    "title": "章节/论文标题",
+    "summary": "核心论点概述（100字）",
+    "key_arguments": ["核心论点1", "核心论点2", "核心论点3"],
+    "methodology": "研究方法（如适用）",
+    "evidence": ["关键证据/数据"],
+    "conclusions": ["结论1", "结论2"],
+    "practical_implications": "实践意义（50字）",
+    "related_theories": ["相关理论/模型"],
+    "tags": ["标签1", "标签2"],
+    "academic_value": "high|medium|low"
+  }
+user: |
+  文献内容：
+  {{content}}
+
+  文献类型：{{pub_type}}
+  标题：{{title}}
+  作者：{{authors}}
+
+  请深度解析：

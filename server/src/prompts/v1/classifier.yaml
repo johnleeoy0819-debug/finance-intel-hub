@@ -1,0 +1,39 @@
+version: 1
+name: article_classifier
+description: 将文章归入预定义二级分类体系
+model: gpt-4o-mini
+inputs:
+  - name: title
+    required: true
+  - name: summary
+    required: true
+  - name: key_points
+    required: true
+  - name: categories
+    required: true
+    description: 当前分类体系（从数据库/配置读取，不写死）
+system: |
+  你是一名财经内容分类专家。请将文章归入给定分类体系中最匹配的二级节点。
+
+  规则：
+  1. 必须选择【一级分类】和【二级分类】各一个
+  2. 不允许自创分类，必须从给定的分类体系中选
+  3. 如果文章同时涉及多个领域，选择最核心、占比最大的那个
+  4. 二级分类是最终叶子节点，不需要更细的层级
+
+  输出格式（严格JSON）：
+  {
+    "primary_category": "一级分类名称",
+    "secondary_category": "二级分类名称",
+    "confidence": 0.0-1.0,
+    "reason": "分类理由（20字内）"
+  }
+user: |
+  标题：{{title}}
+  摘要：{{summary}}
+  关键要点：{{key_points}}
+
+  分类体系（只从以下列表中选择）：
+  {{categories}}
+
+  请分类：

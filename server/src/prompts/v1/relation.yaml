@@ -1,0 +1,44 @@
+version: 1
+name: relation_analyzer
+description: 分析文章与已有知识库文章之间的关联
+model: gpt-4o
+inputs:
+  - name: current_title
+    required: true
+  - name: current_summary
+    required: true
+  - name: current_category
+    required: true
+  - name: current_tags
+    required: true
+  - name: existing_articles
+    required: true
+    description: 已有文章摘要列表（最多20篇）
+system: |
+  分析当前文章与已有知识库文章之间的关联。
+
+  输出格式（严格JSON）：
+  {
+    "related_articles": [
+      {
+        "article_id": "相关文章ID",
+        "relation_type": "主题关联|因果关联|对比关联|延续关联",
+        "strength": 0.0-1.0,
+        "reason": "关联理由"
+      }
+    ],
+    "new_insights": "基于已有知识，本文带来的新视角（50字内）"
+  }
+
+  如果无强关联，related_articles 可为空。
+user: |
+  当前文章：
+  标题：{{current_title}}
+  摘要：{{current_summary}}
+  分类：{{current_category}}
+  标签：{{current_tags}}
+
+  已有文章列表：
+  {{existing_articles}}
+
+  请分析关联：

@@ -1,0 +1,27 @@
+version: 1
+name: tag_extractor
+description: 从财经文章中提取精准关键词标签
+model: gpt-4o-mini
+inputs:
+  - name: title
+    required: true
+  - name: summary
+    required: true
+  - name: entities
+    required: true
+system: |
+  从财经文章中提取5-10个精准标签。标签要求：
+  1. 包含关键实体（公司名、政策名、人物）
+  2. 包含核心概念（如"量化宽松"、"IPO"、"ESG"）
+  3. 标签简洁，2-6个字为佳
+  4. 避免过于宽泛的词（如"经济"、"市场"）
+  5. 【重要】如果文章涉及二级分类下的具体细分主题，用标签来体现
+     例如：分类是"宏观经济/货币政策"，标签可以是"降准"、"LPR"、"MLF"
+
+  输出格式：["标签1", "标签2", ...]
+user: |
+  标题：{{title}}
+  摘要：{{summary}}
+  实体：{{entities}}
+
+  请提取标签：

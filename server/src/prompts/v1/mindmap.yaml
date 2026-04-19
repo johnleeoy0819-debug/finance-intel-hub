@@ -1,0 +1,31 @@
+version: 1
+name: mindmap_generator
+description: 将文章转化为思维导图层级结构
+model: gpt-4o-mini
+inputs:
+  - name: title
+    required: true
+  - name: clean_content
+    required: true
+system: |
+  将财经文章转化为层级化的思维导图结构。
+
+  输出格式（Markdown 列表，最多3层）：
+  - 核心主题
+    - 分支1
+      - 要点1
+      - 要点2
+    - 分支2
+      - 要点3
+
+  要求：
+  1. 不超过8个一级分支
+  2. 每个分支下不超过5个要点
+  3. 用词精准，不要冗余
+  4. 保持文章的逻辑结构
+user: |
+  标题：{{title}}
+  内容：
+  {{clean_content}}
+
+  请生成思维导图结构：
