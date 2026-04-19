@@ -238,3 +238,25 @@ def test_wiki_index_compilation(client, db, api_engine):
     assert data["title"] == "Wiki 索引"
     assert "Page A" in data["content"]
     assert "Page B" in data["content"]
+
+
+def test_missing_concepts_lint(client, db, api_engine):
+    """Scenario 7: Wiki references a concept with no dedicated page."""
+    db.add(WikiPage(
+        title="Main Page",
+        slug="main-page",
+        topic="main",
+        content="This page discusses [[quantum-computing|量子计算]] and **人工智能**.",
+        article_count=1,
+    ))
+    db.commit()
+
+    TestSession = sessionmaker(bind=api_engine)
+    with patch("src.core.lint_engine.SessionLocal", TestSession):
+        from src.core.lint_engine import lint_missing_concepts
+        missing = lint_missing_concepts()
+
+    assert len(missing) >= 2
+    concepts = {m["concept"] for m in missing}
+    assert "量子计算" in concepts or "quantum-computing" in concepts
+    assert "人工智能" in concepts

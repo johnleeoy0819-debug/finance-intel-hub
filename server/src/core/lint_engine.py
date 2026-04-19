@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from src.core.ai_client import AIClient
 from src.core.db_utils import json_loads_field
 from src.db.engine import SessionLocal
-from src.db.models import Article, Tag, ArticleTag, KnowledgeEdge, LintReport
+from src.db.models import Article, Tag, ArticleTag, KnowledgeEdge, LintReport, WikiPage
 from src.core.operation_logger import log_operation
 
 logger = logging.getLogger(__name__)
@@ -171,6 +171,64 @@ def lint_outdated() -> List[Dict[str, Any]]:
         db.close()
 
 
+def lint_missing_concepts() -> List[Dict[str, Any]]:
+    """Find concepts referenced in wiki pages but lacking dedicated pages."""
+    import re
+    db = SessionLocal()
+    try:
+        wikis = db.query(WikiPage).all()
+        if not wikis:
+            return []
+
+        # Collect all concepts referenced in wiki content
+        concepts = set()
+        wiki_map = {}  # concept -> first wiki id that referenced it
+
+        for wiki in wikis:
+            if not wiki.content:
+                continue
+            # [[wikilink]] syntax
+            for match in re.finditer(r'\[\[([^\]|]+)(?:\|[^\]]+)?\]\]', wiki.content):
+                concept = match.group(1).strip()
+                if concept and concept not in concepts:
+                    concepts.add(concept)
+                    wiki_map[concept] = wiki.id
+            # Bold terms **term**
+            for match in re.finditer(r'\*\*([^*]+)\*\*', wiki.content):
+                concept = match.group(1).strip()
+                if concept and 2 < len(concept) < 30 and concept not in concepts:
+                    concepts.add(concept)
+                    wiki_map[concept] = wiki.id
+            # Quoted terms "term" or 「term」
+            for match in re.finditer(r'[「"]([^」"]+)[」"]', wiki.content):
+                concept = match.group(1).strip()
+                if concept and 2 < len(concept) < 30 and concept not in concepts:
+                    concepts.add(concept)
+                    wiki_map[concept] = wiki.id
+
+        # Check if each concept has a dedicated wiki page or article
+        missing = []
+        for concept in concepts:
+            slug = concept.lower().replace(" ", "-").replace("/", "-")[:50]
+            has_wiki = db.query(WikiPage).filter(
+                (WikiPage.topic.ilike(f"%{concept}%")) | (WikiPage.slug == slug)
+            ).first()
+            has_article = db.query(Article).filter(
+                Article.title.ilike(f"%{concept}%"),
+                Article.status == "completed",
+            ).first()
+            if not has_wiki and not has_article:
+                missing.append({
+                    "concept": concept,
+                    "referenced_in_wiki_id": wiki_map.get(concept),
+                    "issue": f"概念 '{concept}' 被引用但没有专属页面",
+                    "suggestion": "创建 Wiki 页面或收录相关文章",
+                })
+        return missing
+    finally:
+        db.close()
+
+
 def run_all_lints() -> Dict[str, Any]:
     """Run all lint checks and save reports to database."""
     logger.info("Starting lint audit...")
@@ -223,6 +281,16 @@ def run_all_lints() -> Dict[str, Any]:
                 status="open",
             ))
 
+        # 5. Missing concepts
+        missing = lint_missing_concepts()
+        for m in missing:
+            all_reports.append(LintReport(
+                lint_type="missing_concept",
+                severity="info",
+                details=json.dumps(m, ensure_ascii=False),
+                status="open",
+            ))
+
         db.add_all(all_reports)
         db.commit()
 
@@ -232,6 +300,7 @@ def run_all_lints() -> Dict[str, Any]:
             "duplicate": len(duplicates),
             "contradiction": len(contradictions),
             "outdated": len(outdated),
+            "missing_concept": len(missing),
         }
         logger.info(f"Lint audit complete: {summary}")
         log_operation(
