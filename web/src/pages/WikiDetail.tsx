@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Calendar } from 'lucide-react'
 import { wikiApi } from '../api/client'
 import Layout from '../components/Layout'
+import WikiMarkdown from '../components/WikiMarkdown'
 import type { WikiPage } from '../types'
 
 export default function WikiDetail() {
@@ -57,9 +58,7 @@ export default function WikiDetail() {
             <span>{page.compiled_at ? new Date(page.compiled_at).toLocaleDateString() : '未编译'}</span>
           </div>
 
-          <div className="prose max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
-            {page.content}
-          </div>
+          <WikiMarkdown content={page.content || ''} />
         </div>
       </main>
     </Layout>

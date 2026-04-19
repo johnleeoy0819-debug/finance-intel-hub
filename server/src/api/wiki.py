@@ -16,6 +16,12 @@ class CompileRequest(BaseModel):
     article_ids: Optional[List[int]] = None
 
 
+class WritebackRequest(BaseModel):
+    title: str
+    content: str
+    source_query: Optional[str] = None
+
+
 @router.get("")
 def list_wiki_pages(topic: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(WikiPage)
@@ -51,6 +57,31 @@ def compile_wiki_index(db: Session = Depends(get_db)):
     """Manually trigger global wiki index compilation."""
     result = compile_index()
     return result
+
+
+@router.post("/writeback")
+def writeback_to_wiki(req: WritebackRequest, db: Session = Depends(get_db)):
+    """Save a chat answer as a new wiki page."""
+    from src.core.wiki_compiler import _slugify
+    slug = _slugify(req.title)
+    # Ensure unique slug
+    base_slug = slug
+    counter = 1
+    while db.query(WikiPage).filter(WikiPage.slug == slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    page = WikiPage(
+        title=req.title,
+        slug=slug,
+        topic=req.source_query or req.title,
+        content=req.content,
+        article_count=0,
+    )
+    db.add(page)
+    db.commit()
+    db.refresh(page)
+    return {"status": "completed", "wiki_page_id": page.id, "slug": page.slug}
 
 
 @router.delete("/{slug}")

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, ThumbsUp, ThumbsDown, BookOpen } from 'lucide-react'
-import { skillApi } from '../api/client'
+import { Send, Bot, User, ThumbsUp, ThumbsDown, BookOpen, Save } from 'lucide-react'
+import { skillApi, wikiApi } from '../api/client'
 import Layout from '../components/Layout'
 
 interface Message {
@@ -23,6 +23,7 @@ export default function Chat() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [savedToWiki, setSavedToWiki] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -69,6 +70,18 @@ export default function Chat() {
       setMessages((prev) =>
         prev.map((m) => (m.id === msgId ? { ...m, feedbackSent: true } : m))
       )
+    } catch {
+      // silently fail
+    }
+  }
+
+  const handleSaveToWiki = async (msgId: string) => {
+    const msg = messages.find((m) => m.id === msgId)
+    if (!msg || savedToWiki.has(msgId)) return
+    const title = msg.content.split('\n')[0].slice(0, 50) || 'Chat 笔记'
+    try {
+      await wikiApi.writeback(title, msg.content)
+      setSavedToWiki((prev) => new Set(prev).add(msgId))
     } catch {
       // silently fail
     }
@@ -143,6 +156,13 @@ export default function Chat() {
                       className="text-xs flex items-center gap-0.5 text-gray-400 hover:text-red-600 disabled:opacity-50"
                     >
                       <ThumbsDown className="w-3 h-3" /> 不准确
+                    </button>
+                    <button
+                      onClick={() => handleSaveToWiki(msg.id)}
+                      disabled={savedToWiki.has(msg.id)}
+                      className="text-xs flex items-center gap-0.5 text-gray-400 hover:text-blue-600 disabled:opacity-50"
+                    >
+                      <Save className="w-3 h-3" /> {savedToWiki.has(msg.id) ? '已保存' : '保存到 Wiki'}
                     </button>
                     {msg.feedbackSent && <span className="text-xs text-green-500">已反馈</span>}
                   </div>

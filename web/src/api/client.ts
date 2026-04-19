@@ -129,6 +129,8 @@ export const wikiApi = {
   list: () => api.get<WikiPage[]>('/wiki').then(r => r.data),
   get: (slug: string) => api.get<WikiPage>(`/wiki/${slug}`).then(r => r.data),
   compile: (topic: string, article_ids?: number[]) => api.post('/wiki/compile', { topic, article_ids }).then(r => r.data),
+  writeback: (title: string, content: string, source_query?: string) =>
+    api.post('/wiki/writeback', { title, content, source_query }).then(r => r.data),
 }
 
 export const tagsApi = {
