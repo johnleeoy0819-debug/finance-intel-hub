@@ -58,7 +58,10 @@ export default function ArticleDetail() {
         <Link to="/library" className="text-gray-600 hover:text-primary-600">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-lg font-semibold truncate">{article.title}</h1>
+        <h1 className="text-lg font-semibold truncate flex-1">{article.title}</h1>
+        <nav className="flex gap-4 text-sm">
+          <Link to="/publications" className="text-gray-600 hover:text-primary-600">文献</Link>
+        </nav>
       </header>
 
       <main className="max-w-4xl mx-auto p-6">

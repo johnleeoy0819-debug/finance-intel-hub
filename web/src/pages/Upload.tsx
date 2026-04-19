@@ -43,6 +43,7 @@ export default function Upload() {
           <Link to="/library" className="text-gray-600 hover:text-primary-600">知识库</Link>
           <Link to="/upload" className="text-primary-600 font-medium">上传</Link>
           <Link to="/sources" className="text-gray-600 hover:text-primary-600">数据源</Link>
+          <Link to="/publications" className="text-gray-600 hover:text-primary-600">文献</Link>
         </nav>
       </header>
 

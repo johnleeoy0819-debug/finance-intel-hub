@@ -82,3 +82,26 @@ export const graphApi = {
   global: (limit?: number) =>
     api.get<GraphData>('/graph/global', { params: { limit } }).then(r => r.data),
 }
+
+export interface Publication {
+  id: number
+  pub_type: string
+  title: string
+  authors?: string
+  publisher?: string
+  doi?: string
+  url?: string
+  abstract?: string
+  keywords?: string
+  publication_date?: string
+  citation_count: number
+  created_at: string
+}
+
+export const publicationsApi = {
+  list: (params?: { pub_type?: string; q?: string; limit?: number; offset?: number }) =>
+    api.get<{ total: number; items: Publication[] }>('/publications', { params }).then(r => r.data),
+  get: (id: number) => api.get<{ publication: Publication; chapters: any[] }>(`/publications/${id}`).then(r => r.data),
+  import: (url: string) => api.post<{ publication: Publication; created: boolean }>('/publications/import', null, { params: { url } }).then(r => r.data),
+  delete: (id: number) => api.delete(`/publications/${id}`),
+}

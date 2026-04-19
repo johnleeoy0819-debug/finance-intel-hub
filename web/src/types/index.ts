@@ -79,3 +79,18 @@ export interface GraphData {
   nodes: GraphNode[]
   links: GraphLink[]
 }
+
+export interface Publication {
+  id: number
+  pub_type: string
+  title: string
+  authors?: string
+  publisher?: string
+  doi?: string
+  url?: string
+  abstract?: string
+  keywords?: string
+  publication_date?: string
+  citation_count: number
+  created_at: string
+}

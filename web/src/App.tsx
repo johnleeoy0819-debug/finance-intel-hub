@@ -4,6 +4,7 @@ import Library from './pages/Library'
 import ArticleDetail from './pages/ArticleDetail'
 import Sources from './pages/Sources'
 import Upload from './pages/Upload'
+import Publications from './pages/Publications'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/article/:id" element={<ArticleDetail />} />
         <Route path="/sources" element={<Sources />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/publications" element={<Publications />} />
       </Routes>
     </div>
   )
