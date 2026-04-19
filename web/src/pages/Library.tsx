@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useStore } from '../store'
 import { articlesApi, searchApi } from '../api/client'
 import ArticleCard from '../components/ArticleCard'
 import SearchBar, { type SearchMode } from '../components/SearchBar'
 import CategoryTree from '../components/CategoryTree'
+import Layout from '../components/Layout'
 import type { Article } from '../types'
 
 interface SearchResult {
@@ -13,7 +13,12 @@ interface SearchResult {
 }
 
 export default function Library() {
-  const { articles, articleTotal, setArticles, selectedCategory, setSelectedCategory, categories } = useStore()
+  const articles = useStore((s) => s.articles)
+  const articleTotal = useStore((s) => s.articleTotal)
+  const setArticles = useStore((s) => s.setArticles)
+  const selectedCategory = useStore((s) => s.selectedCategory)
+  const setSelectedCategory = useStore((s) => s.setSelectedCategory)
+  const categories = useStore((s) => s.categories)
   const [page, setPage] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -67,21 +72,7 @@ export default function Library() {
     : articles
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold">FinanceIntel Hub</Link>
-        <div className="flex-1 max-w-xl mx-6">
-          <SearchBar onSearch={handleSearch} />
-        </div>
-        <nav className="flex gap-4 text-sm">
-          <Link to="/" className="text-gray-600 hover:text-primary-600">仪表盘</Link>
-          <Link to="/library" className="text-primary-600 font-medium">知识库</Link>
-          <Link to="/upload" className="text-gray-600 hover:text-primary-600">上传</Link>
-          <Link to="/sources" className="text-gray-600 hover:text-primary-600">数据源</Link>
-          <Link to="/publications" className="text-gray-600 hover:text-primary-600">文献</Link>
-        </nav>
-      </header>
-
+    <Layout extraHeader={<div className="max-w-xl mx-auto"><SearchBar onSearch={handleSearch} /></div>}>
       <main className="max-w-6xl mx-auto p-6 flex gap-6">
         <aside className="w-56 shrink-0">
           <div className="bg-white rounded-lg shadow p-4">
@@ -146,6 +137,6 @@ export default function Library() {
           )}
         </div>
       </main>
-    </div>
+    </Layout>
   )
 }

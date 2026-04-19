@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { articlesApi, graphApi, skillApi } from '../api/client'
 import KnowledgeGraph from '../components/KnowledgeGraph'
+import Layout from '../components/Layout'
 import type { Article, GraphData } from '../types'
 
 export default function ArticleDetail() {
@@ -75,40 +76,41 @@ export default function ArticleDetail() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-red-600 mb-2">加载失败</p>
-          <p className="text-gray-500 text-sm mb-4">{error}</p>
-          <Link to="/library" className="text-primary-600 hover:underline text-sm">返回知识库</Link>
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <p className="text-red-600 mb-2">加载失败</p>
+            <p className="text-gray-500 text-sm mb-4">{error}</p>
+            <Link to="/library" className="text-primary-600 hover:underline text-sm">返回知识库</Link>
+          </div>
         </div>
-      </div>
+      </Layout>
     )
   }
 
-  if (!article) return <div className="p-10 text-center">加载中...</div>
+  if (!article) return (
+    <Layout>
+      <div className="p-10 text-center">加载中...</div>
+    </Layout>
+  )
 
   const keyPoints = article.key_points
     ? (typeof article.key_points === 'string' ? JSON.parse(article.key_points) : article.key_points)
     : []
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center gap-4">
-        <Link to="/library" className="text-gray-600 hover:text-primary-600">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-lg font-semibold truncate flex-1">{article.title}</h1>
-        <nav className="flex gap-4 text-sm">
-          <Link to="/publications" className="text-gray-600 hover:text-primary-600">文献</Link>
-        </nav>
-      </header>
-
+    <Layout>
       <main className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-lg shadow p-6 mb-4">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {article.tags?.map((tag: string) => (
-              <span key={tag} className="px-2 py-0.5 bg-gray-100 text-xs rounded-full">#{tag}</span>
-            ))}
+          <div className="flex items-center gap-3 mb-3">
+            <Link to="/library" className="text-gray-600 hover:text-primary-600">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex flex-wrap gap-2 flex-1">
+              {article.tags?.map((tag: string) => (
+                <span key={tag} className="px-2 py-0.5 bg-gray-100 text-xs rounded-full">#{tag}</span>
+              ))}
+            </div>
           </div>
           <div className="text-sm text-gray-500 mb-4">
             {article.primary_category} / {article.secondary_category} · {article.source} · {new Date(article.created_at).toLocaleDateString()}
@@ -212,6 +214,6 @@ export default function ArticleDetail() {
           </div>
         </div>
       </main>
-    </div>
+    </Layout>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Plus, Play, Trash2 } from 'lucide-react'
 import { sourcesApi } from '../api/client'
+import Layout from '../components/Layout'
 import type { Source } from '../types'
 
 export default function Sources() {
@@ -49,18 +49,7 @@ export default function Sources() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold">FinanceIntel Hub</Link>
-        <nav className="flex gap-4 text-sm">
-          <Link to="/" className="text-gray-600 hover:text-primary-600">仪表盘</Link>
-          <Link to="/library" className="text-gray-600 hover:text-primary-600">知识库</Link>
-          <Link to="/upload" className="text-gray-600 hover:text-primary-600">上传</Link>
-          <Link to="/sources" className="text-primary-600 font-medium">数据源</Link>
-          <Link to="/publications" className="text-gray-600 hover:text-primary-600">文献</Link>
-        </nav>
-      </header>
-
+    <Layout>
       <main className="max-w-4xl mx-auto p-6">
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
@@ -103,6 +92,6 @@ export default function Sources() {
           ))}
         </div>
       </main>
-    </div>
+    </Layout>
   )
 }

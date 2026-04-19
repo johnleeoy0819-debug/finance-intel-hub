@@ -1,5 +1,5 @@
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from functools import lru_cache
 
@@ -18,6 +18,8 @@ PROJECT_ROOT = _find_project_root()
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=str(PROJECT_ROOT / ".env"))
+
     # AI — fail fast if missing
     OPENAI_API_KEY: str = Field(..., min_length=1)
     OPENAI_MODEL_PRIMARY: str = "gpt-4o"
@@ -41,9 +43,6 @@ class Settings(BaseSettings):
     # Skill
     SKILL_FEEDBACK_ENABLED: bool = True
     SKILL_EVOLUTION_ENABLED: bool = False
-    
-    class Config:
-        env_file = str(PROJECT_ROOT / ".env")
 
 
 @lru_cache()

@@ -1,3 +1,4 @@
+from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -5,16 +6,32 @@ from src.db.engine import SessionLocal
 from src.db.models import Source
 from src.core.crawler import crawl_source
 
-_scheduler: BackgroundScheduler = None
+_scheduler: Optional[BackgroundScheduler] = None
 
 
 def get_scheduler() -> BackgroundScheduler:
+    """Return the scheduler instance (does not auto-start)."""
     global _scheduler
     if _scheduler is None:
         _scheduler = BackgroundScheduler()
-        _scheduler.start()
-        _load_jobs()
     return _scheduler
+
+
+def start_scheduler() -> BackgroundScheduler:
+    """Start scheduler and load jobs. Idempotent."""
+    scheduler = get_scheduler()
+    if not scheduler.running:
+        scheduler.start()
+        _load_jobs()
+    return scheduler
+
+
+def shutdown_scheduler() -> None:
+    """Gracefully shutdown the scheduler."""
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+    _scheduler = None
 
 
 def _load_jobs():

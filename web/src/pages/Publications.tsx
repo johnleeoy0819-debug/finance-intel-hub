@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Plus, Trash2, ExternalLink } from 'lucide-react'
 import { publicationsApi } from '../api/client'
+import Layout from '../components/Layout'
 import type { Publication } from '../types'
 
 export default function Publications() {
@@ -20,7 +20,7 @@ export default function Publications() {
       .catch((err) => setError(err.message))
   }
 
-  useEffect(() => { load() }, [q, pubType])
+  useEffect(() => { load() }, [q, pubType])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImport = async () => {
     setError(null)
@@ -44,18 +44,7 @@ export default function Publications() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold">FinanceIntel Hub</Link>
-        <nav className="flex gap-4 text-sm">
-          <Link to="/" className="text-gray-600 hover:text-primary-600">仪表盘</Link>
-          <Link to="/library" className="text-gray-600 hover:text-primary-600">知识库</Link>
-          <Link to="/upload" className="text-gray-600 hover:text-primary-600">上传</Link>
-          <Link to="/sources" className="text-gray-600 hover:text-primary-600">数据源</Link>
-          <Link to="/publications" className="text-primary-600 font-medium">文献</Link>
-        </nav>
-      </header>
-
+    <Layout>
       <main className="max-w-5xl mx-auto p-6">
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">{error}</div>
@@ -129,6 +118,6 @@ export default function Publications() {
           ))}
         </div>
       </main>
-    </div>
+    </Layout>
   )
 }

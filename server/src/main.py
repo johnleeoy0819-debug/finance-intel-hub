@@ -1,10 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.api import crawler, articles, upload, search, stats, skill, graph, publications
+from src.core.scheduler import start_scheduler, shutdown_scheduler
 
-app = FastAPI(title="FinanceIntel Hub API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage APScheduler lifecycle with the app."""
+    start_scheduler()
+    yield
+    shutdown_scheduler()
+
+
+app = FastAPI(title="FinanceIntel Hub API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
