@@ -160,3 +160,24 @@ class Correction(Base):
     original_value = Column(Text)
     corrected_value = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ─────────────────────────────────────────────
+# SQLAlchemy event listeners for vector indexing
+# ─────────────────────────────────────────────
+from sqlalchemy import event
+
+@event.listens_for(Article, "after_insert")
+def _index_article_after_insert(mapper, connection, target):
+    """Auto-index article into ChromaDB after DB insert."""
+    try:
+        from src.core.vector_store import VectorStore
+        VectorStore().add_article(
+            target.id,
+            target.title or "",
+            target.summary or "",
+            target.clean_content or "",
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Vector index failed for article {target.id}: {e}")

@@ -1,41 +1,76 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store'
-import { articlesApi } from '../api/client'
+import { articlesApi, searchApi } from '../api/client'
 import ArticleCard from '../components/ArticleCard'
-import SearchBar from '../components/SearchBar'
+import SearchBar, { type SearchMode } from '../components/SearchBar'
 import CategoryTree from '../components/CategoryTree'
+import type { Article } from '../types'
+
+interface SearchResult {
+  article: Article
+  score?: number
+}
 
 export default function Library() {
   const { articles, articleTotal, setArticles, selectedCategory, setSelectedCategory, categories } = useStore()
   const [page, setPage] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [, setSearchMode] = useState<SearchMode>('fulltext')
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null)
   const limit = 20
 
   useEffect(() => {
     setError(null)
     setLoading(true)
+    setSearchResults(null)
     articlesApi.list({ category_id: selectedCategory || undefined, limit, offset: page * limit })
       .then((r) => setArticles(r.items, r.total))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [selectedCategory, page, setArticles])
 
-  const handleSearch = (q: string) => {
+  const handleSearch = (q: string, mode: SearchMode) => {
     setError(null)
     setLoading(true)
-    articlesApi.list({ tag: q, limit, offset: 0 })
-      .then((r) => { setPage(0); setArticles(r.items, r.total) })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
+    setSearchMode(mode)
+    setPage(0)
+
+    if (mode === 'fulltext') {
+      searchApi.search(q)
+        .then((r: any) => { setSearchResults(null); setArticles(r.items || [], r.items?.length || 0) })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false))
+    } else if (mode === 'semantic') {
+      searchApi.semantic(q)
+        .then((r: any) => {
+          const items: SearchResult[] = (r.items || []).map((item: any) => ({
+            article: item.article,
+            score: item.score,
+          }))
+          setSearchResults(items)
+          setArticles([], items.length)
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false))
+    } else {
+      searchApi.hybrid(q)
+        .then((r: any) => { setSearchResults(null); setArticles(r.items || [], r.items?.length || 0) })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false))
+    }
   }
+
+  const displayItems = searchResults
+    ? searchResults.map((r) => r.article)
+    : articles
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <Link to="/" className="text-xl font-bold">FinanceIntel Hub</Link>
-        <div className="flex-1 max-w-md mx-6">
+        <div className="flex-1 max-w-xl mx-6">
           <SearchBar onSearch={handleSearch} />
         </div>
         <nav className="flex gap-4 text-sm">
@@ -53,7 +88,7 @@ export default function Library() {
             <CategoryTree
               categories={categories}
               selectedId={selectedCategory}
-              onSelect={setSelectedCategory}
+              onSelect={(id) => { setSelectedCategory(id); setSearchResults(null); setPage(0) }}
             />
           </div>
         </aside>
@@ -66,7 +101,9 @@ export default function Library() {
           )}
 
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">全部文章 ({articleTotal})</h2>
+            <h2 className="text-lg font-semibold">
+              {searchResults ? `语义搜索结果 (${articleTotal})` : `全部文章 (${articleTotal})`}
+            </h2>
           </div>
 
           {loading ? (
@@ -74,11 +111,18 @@ export default function Library() {
           ) : (
             <>
               <div className="space-y-3">
-                {articles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
+                {displayItems.map((article, idx) => (
+                  <div key={article.id} className="relative">
+                    {searchResults && searchResults[idx]?.score !== undefined && (
+                      <div className="absolute right-2 top-2 text-xs text-gray-400 bg-white/80 px-1.5 py-0.5 rounded">
+                        相似度: {searchResults[idx].score}
+                      </div>
+                    )}
+                    <ArticleCard article={article} />
+                  </div>
                 ))}
               </div>
-              {articleTotal > limit && (
+              {!searchResults && articleTotal > limit && (
                 <div className="flex justify-center gap-2 mt-6">
                   <button
                     onClick={() => setPage((p) => Math.max(0, p - 1))}

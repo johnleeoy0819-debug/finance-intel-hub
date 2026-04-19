@@ -38,6 +38,8 @@ export const sourcesApi = {
 
 export const searchApi = {
   search: (q: string) => api.get('/search', { params: { q } }).then(r => r.data),
+  semantic: (q: string) => api.get('/search/semantic', { params: { q } }).then(r => r.data),
+  hybrid: (q: string) => api.get('/search/hybrid', { params: { q } }).then(r => r.data),
 }
 
 export const statsApi = {
