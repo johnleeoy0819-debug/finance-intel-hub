@@ -5,6 +5,7 @@ from src.core.ai_client import AIClient
 from src.db.engine import SessionLocal
 from src.db.models import Article, Category, Correction
 from src.config import settings
+from src.core.operation_logger import log_operation
 
 
 class ArticleProcessor:
@@ -107,7 +108,7 @@ class ArticleProcessor:
             entities=summary_result.get("entities", []),
         )
 
-        return {
+        result = {
             "status": "completed",
             "clean_content": clean,
             "title": summary_result.get("title", title or ""),
@@ -120,3 +121,9 @@ class ArticleProcessor:
             "secondary_category": classification.get("secondary_category", ""),
             "tags": tags,
         }
+        log_operation(
+            "article_processed",
+            target_type="article",
+            details={"source_url": source_url, "title": result["title"], "primary_category": result["primary_category"]},
+        )
+        return result

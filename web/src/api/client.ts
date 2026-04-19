@@ -140,6 +140,11 @@ export const settingsApi = {
   updateRules: (rules: string) => api.put('/settings/rules', { rules }).then(r => r.data),
 }
 
+export const operationsApi = {
+  list: (params?: { operation_type?: string; limit?: number; offset?: number }) =>
+    api.get<{ total: number; items: any[] }>('/operations', { params }).then(r => r.data),
+}
+
 export const skillApi = {
   chat: (query: string) => api.post<{ query: string; answer: string; strategy: string; wiki_slug?: string; sources: { id: number; title: string }[] }>('/skill/chat', { query }).then(r => r.data),
   feedback: (data: { skill_name?: string; query: string; response_summary?: string; rating?: number; comment?: string }) =>

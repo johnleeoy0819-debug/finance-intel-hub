@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.db.engine import get_db
 from src.db.models import UserRule
+from src.core.operation_logger import log_operation
 
 router = APIRouter()
 
@@ -52,4 +53,11 @@ def update_rules(req: RulesUpdateRequest, db: Session = Depends(get_db)):
         rule.rules = req.rules
     db.commit()
     db.refresh(rule)
+    log_operation(
+        "rules_updated",
+        target_type="user_rule",
+        target_id=rule.id,
+        details={"rules_length": len(rule.rules) if rule.rules else 0},
+        db=db,
+    )
     return {"rules": rule.rules}

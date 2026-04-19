@@ -10,6 +10,7 @@ import WikiList from './pages/WikiList'
 import WikiDetail from './pages/WikiDetail'
 import LintReports from './pages/LintReports'
 import Settings from './pages/Settings'
+import OperationLogs from './pages/OperationLogs'
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/wiki/:slug" element={<WikiDetail />} />
         <Route path="/lint" element={<LintReports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/operations" element={<OperationLogs />} />
       </Routes>
     </div>
   )

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { path: '/sources', label: '数据源' },
   { path: '/publications', label: '文献' },
   { path: '/settings', label: '设置' },
+  { path: '/operations', label: '日志' },
 ]
 
 interface Props {

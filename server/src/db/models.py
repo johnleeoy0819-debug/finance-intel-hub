@@ -196,6 +196,16 @@ class UserRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class OperationLog(Base):
+    __tablename__ = "operation_logs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    operation_type = Column(String, nullable=False)
+    target_type = Column(String)
+    target_id = Column(String)
+    details = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # ─────────────────────────────────────────────
 # SQLAlchemy event listeners for vector indexing
 # ─────────────────────────────────────────────

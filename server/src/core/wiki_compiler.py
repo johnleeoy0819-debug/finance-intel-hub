@@ -10,6 +10,7 @@ from src.core.db_utils import json_dumps_field
 from src.db.engine import SessionLocal
 from src.db.models import Article, WikiPage
 from src.config import settings
+from src.core.operation_logger import log_operation
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,12 @@ def compile_topic(topic: str, article_ids: Optional[List[int]] = None) -> Dict[s
             db.refresh(page)
 
         logger.info(f"Compiled wiki page '{title}' from {len(articles)} articles")
+        log_operation(
+            "wiki_compiled",
+            target_type="wiki_page",
+            target_id=page.id,
+            details={"title": page.title, "slug": page.slug, "article_count": len(articles)},
+        )
         return {
             "status": "completed",
             "wiki_page_id": page.id,

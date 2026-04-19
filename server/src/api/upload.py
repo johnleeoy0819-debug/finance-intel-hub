@@ -10,6 +10,7 @@ from pathlib import Path
 from src.db.engine import get_db, SessionLocal
 from src.db.models import UploadTask, Article
 from src.config import settings
+from src.core.operation_logger import log_operation
 from src.core.video_processor import VideoProcessor
 from src.core.processor import ArticleProcessor
 from src.core.url_processor import process_article_url, process_video_url, _is_video_url
@@ -81,10 +82,12 @@ def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
         try:
             vp = VideoProcessor()
             result = vp.process_video_upload(task.id, str(file_path), file.filename)
+            log_operation("file_uploaded", target_type="upload", target_id=task.id, details={"filename": file.filename, "type": "video"})
             return {"task": task, "result": result}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"转录失败: {e}")
 
+    log_operation("file_uploaded", target_type="upload", target_id=task.id, details={"filename": file.filename, "type": task.file_type})
     return task
 
 
@@ -145,6 +148,7 @@ def upload_url(req: UrlUploadRequest, db: Session = Depends(get_db)):
 
     threading.Thread(target=_process, daemon=True).start()
 
+    log_operation("url_submitted", target_type="upload", target_id=task.id, details={"url": url, "type": "video" if is_video else "article"})
     return {"task_id": task.id, "status": "processing", "type": "video" if is_video else "article"}
 
 

@@ -8,6 +8,7 @@ from src.core.ai_client import AIClient
 from src.core.db_utils import json_loads_field
 from src.db.engine import SessionLocal
 from src.db.models import Article, Tag, ArticleTag, KnowledgeEdge, LintReport
+from src.core.operation_logger import log_operation
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +234,11 @@ def run_all_lints() -> Dict[str, Any]:
             "outdated": len(outdated),
         }
         logger.info(f"Lint audit complete: {summary}")
+        log_operation(
+            "lint_run",
+            target_type="system",
+            details=summary,
+        )
         return summary
     finally:
         db.close()
