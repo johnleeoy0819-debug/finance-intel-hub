@@ -105,3 +105,9 @@ export const publicationsApi = {
   import: (url: string) => api.post<{ publication: Publication; created: boolean }>('/publications/import', null, { params: { url } }).then(r => r.data),
   delete: (id: number) => api.delete(`/publications/${id}`),
 }
+
+export const skillApi = {
+  feedback: (data: { skill_name?: string; query: string; response_summary?: string; rating?: number; comment?: string }) =>
+    api.post('/skill/feedback', data).then(r => r.data),
+  examples: (field?: string) => api.get('/skill/examples', { params: { field } }).then(r => r.data),
+}

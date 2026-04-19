@@ -13,11 +13,11 @@ class ArticleProcessor:
 
     def clean(self, raw_content: str) -> str:
         """Extract clean text from raw HTML/content."""
-        return self.ai.run_prompt("cleaner", raw_content=raw_content)
+        return self.ai.run_prompt("cleaner", raw_content=raw_content, fewshot_field="clean_content")
 
     def summarize(self, clean_content: str) -> Dict[str, Any]:
         """Generate structured summary."""
-        return self.ai.run_prompt_json("summarizer", clean_content=clean_content)
+        return self.ai.run_prompt_json("summarizer", clean_content=clean_content, fewshot_field="summary")
 
     def classify(self, title: str, summary: str, key_points: List[str], categories: str) -> Dict[str, Any]:
         """Classify article into primary + secondary category."""
@@ -27,11 +27,12 @@ class ArticleProcessor:
             summary=summary,
             key_points="\n".join(key_points) if isinstance(key_points, list) else key_points,
             categories=categories,
+            fewshot_field="primary_category",
         )
 
     def extract_tags(self, title: str, summary: str, entities: List[str]) -> List[str]:
         """Extract keyword tags."""
-        result = self.ai.run_prompt_json("tagger", title=title, summary=summary, entities=entities)
+        result = self.ai.run_prompt_json("tagger", title=title, summary=summary, entities=entities, fewshot_field="tags")
         if isinstance(result, list):
             return result
         return result.get("tags", [])
