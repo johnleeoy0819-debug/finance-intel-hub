@@ -19,7 +19,9 @@ export default function Upload() {
     const newTasks: UploadTask[] = []
     for (const file of Array.from(files)) {
       try {
-        const task = await uploadApi.upload(file)
+        const resp = await uploadApi.upload(file)
+        // Media uploads return {task, result}; doc uploads return task directly
+        const task = resp.task || resp
         newTasks.push(task)
       } catch (err: any) {
         setError(err.message)

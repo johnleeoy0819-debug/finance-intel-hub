@@ -8,6 +8,8 @@ from pathlib import Path
 from src.db.engine import get_db
 from src.db.models import UploadTask, Article
 from src.config import settings
+from src.core.video_processor import VideoProcessor
+from src.core.processor import ArticleProcessor
 
 router = APIRouter()
 
@@ -15,7 +17,15 @@ UPLOAD_DIR = Path(settings.STORAGE_PATH) / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".md", ".epub", ".html", ".htm"}
+ALLOWED_EXTENSIONS = {
+    # Documents
+    ".pdf", ".doc", ".docx", ".txt", ".md", ".epub", ".html", ".htm",
+    # Audio / Video (Whisper supported)
+    ".mp3", ".mp4", ".m4a", ".wav", ".webm", ".ogg", ".oga", ".mpeg", ".mpga",
+}
+
+# Audio/video extensions that should go through Whisper
+MEDIA_EXTENSIONS = {".mp3", ".mp4", ".m4a", ".wav", ".webm", ".ogg", ".oga", ".mpeg", ".mpga"}
 
 
 def _safe_filename(filename: str) -> str:
@@ -49,16 +59,29 @@ def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
     with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
+    ext = Path(safe_name).suffix.lower()
+    is_media = ext in MEDIA_EXTENSIONS
+
     task = UploadTask(
         original_filename=file.filename,
         file_path=str(file_path),
         file_type=safe_name.split(".")[-1].lower(),
         file_size=os.path.getsize(file_path),
-        status="pending",
+        status="processing" if is_media else "pending",
     )
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # If audio/video, transcribe immediately (sync for MVP)
+    if is_media:
+        try:
+            vp = VideoProcessor()
+            result = vp.process_video_upload(task.id, str(file_path), file.filename)
+            return {"task": task, "result": result}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"转录失败: {e}")
+
     return task
 
 

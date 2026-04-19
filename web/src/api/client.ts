@@ -50,7 +50,7 @@ export const uploadApi = {
   upload: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return api.post<UploadTask>('/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+    return api.post<any>('/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
   },
   tasks: () => api.get<UploadTask[]>('/upload/tasks').then(r => r.data),
 }
