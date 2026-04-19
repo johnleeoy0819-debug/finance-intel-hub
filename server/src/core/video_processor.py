@@ -55,7 +55,7 @@ class VideoProcessor:
         """Full pipeline: transcribe → process as article. Returns article dict."""
         from src.core.processor import ArticleProcessor
         from src.db.engine import SessionLocal
-        from src.db.models import UploadTask, VideoTranscript
+        from src.db.models import Article, UploadTask, VideoTranscript
 
         db = SessionLocal()
         try:
@@ -71,7 +71,7 @@ class VideoProcessor:
             vt = VideoTranscript(
                 video_path=file_path,
                 transcript_text=transcript["text"],
-                segments=transcript["segments"],
+                segments=json_dumps_field(transcript["segments"]),
                 language=transcript["language"],
             )
             db.add(vt)
@@ -93,22 +93,34 @@ class VideoProcessor:
                     db.commit()
                 return {"status": "irrelevant", "transcript_id": vt.id}
 
-            # 4. Create Article
+            # 4. Resolve categories
+            from src.core.db_utils import resolve_category_ids, save_article_tags, json_dumps_field
+            primary_id, secondary_id = resolve_category_ids(
+                db,
+                processed.get("primary_category"),
+                processed.get("secondary_category"),
+            )
+
+            # 5. Create Article
             article = Article(
                 title=processed.get("title", original_filename) or original_filename,
                 url=f"file://{original_filename}",
                 status="completed",
                 clean_content=processed.get("clean_content", ""),
                 summary=processed.get("summary", ""),
-                key_points=processed.get("key_points", []),
-                entities=processed.get("entities", []),
+                key_points=json_dumps_field(processed.get("key_points", [])),
+                entities=json_dumps_field(processed.get("entities", [])),
                 sentiment=processed.get("sentiment", "neutral"),
                 importance=processed.get("importance", "medium"),
-                tags=processed.get("tags", []),
+                primary_category_id=primary_id,
+                secondary_category_id=secondary_id,
             )
             db.add(article)
             db.commit()
             db.refresh(article)
+
+            # 6. Save tags via association table
+            save_article_tags(db, article.id, processed.get("tags", []))
 
             # Link transcript to article
             vt.article_id = article.id

@@ -45,7 +45,7 @@ export default function ArticleDetail() {
       await skillApi.feedback({
         query: article.title,
         response_summary: article.summary,
-        rating: 5,
+        rating: 1,
       })
       setFeedbackSent(true)
     } catch (err: any) {
@@ -63,7 +63,7 @@ export default function ArticleDetail() {
       await skillApi.feedback({
         query: article.title,
         response_summary: article.summary,
-        rating: 1,
+        rating: -1,
         comment: feedbackComment,
       })
       setFeedbackSent(true)
@@ -172,7 +172,7 @@ export default function ArticleDetail() {
                   data={graphData}
                   width={720}
                   height={420}
-                  onNodeClick={(nid) => navigate(`/articles/${nid}`)}
+                  onNodeClick={(nid) => navigate(`/article/${nid}`)}
                 />
               ) : (
                 <div className="text-center text-gray-400 py-10">暂无知识图谱数据</div>

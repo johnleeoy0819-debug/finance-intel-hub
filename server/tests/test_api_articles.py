@@ -153,3 +153,42 @@ def test_correct_article_not_found(client):
     payload = {"field": "title", "corrected_value": "New Title"}
     response = client.post("/api/articles/9999/correct", json=payload)
     assert response.status_code == 404
+
+
+def test_article_response_schema_includes_category_names_and_tags(client, db):
+    """Bug 7 fix: article API returns category names and tags, not raw ORM."""
+    cat = Category(name="Macro", slug="macro")
+    db.add(cat)
+    db.commit()
+
+    article = Article(title="Schema Test", primary_category_id=cat.id, status="completed")
+    db.add(article)
+    db.commit()
+
+    tag = Tag(name="finance")
+    db.add(tag)
+    db.commit()
+    db.add(ArticleTag(article_id=article.id, tag_id=tag.id))
+    db.commit()
+
+    response = client.get(f"/api/articles/{article.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["primary_category"] == "Macro"
+    assert data["tags"] == ["finance"]
+    assert "key_points" in data
+    assert "entities" in data
+
+
+def test_correct_article_invalid_category_type(client, db):
+    """Bug 10 fix: correction rejects non-integer category values."""
+    article = Article(title="Test", status="completed")
+    db.add(article)
+    db.commit()
+
+    payload = {
+        "field": "primary_category",
+        "corrected_value": "not-a-number",
+    }
+    response = client.post(f"/api/articles/{article.id}/correct", json=payload)
+    assert response.status_code == 422

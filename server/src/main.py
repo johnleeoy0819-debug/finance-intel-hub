@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.api import crawler, articles, upload, search, stats, skill, graph, publications
+from src.api import crawler, articles, upload, search, stats, skill, graph, publications, categories
 from src.core.scheduler import start_scheduler, shutdown_scheduler
 
 
@@ -34,6 +34,7 @@ app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(skill.router, prefix="/api/skill", tags=["skill"])
 app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
 app.include_router(publications.router, prefix="/api/publications", tags=["publications"])
+app.include_router(categories.router, prefix="/api", tags=["categories"])
 
 
 @app.get("/api/health")

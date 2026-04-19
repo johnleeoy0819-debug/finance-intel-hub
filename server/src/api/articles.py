@@ -4,9 +4,52 @@ from typing import List, Optional
 
 from src.db.engine import get_db
 from src.db.models import Article, Correction, Category, Tag, ArticleTag
-from src.api.schemas import ArticleListParams, CorrectionCreate
+from src.api.schemas import ArticleListParams, CorrectionCreate, ArticleResponse
+from src.core.db_utils import json_loads_field
 
 router = APIRouter()
+
+
+def _article_to_response(db: Session, article: Article) -> ArticleResponse:
+    """Convert ORM Article to frontend-friendly response schema."""
+    primary_cat = None
+    secondary_cat = None
+    if article.primary_category_id:
+        cat = db.query(Category).filter(Category.id == article.primary_category_id).first()
+        primary_cat = cat.name if cat else None
+    if article.secondary_category_id:
+        cat = db.query(Category).filter(Category.id == article.secondary_category_id).first()
+        secondary_cat = cat.name if cat else None
+
+    tags = []
+    tag_rows = db.query(Tag).join(ArticleTag).filter(ArticleTag.article_id == article.id).all()
+    tags = [t.name for t in tag_rows]
+
+    source_name = None
+    if article.source_id:
+        from src.db.models import Source
+        src = db.query(Source).filter(Source.id == article.source_id).first()
+        source_name = src.name if src else None
+
+    return ArticleResponse(
+        id=article.id,
+        title=article.title,
+        url=article.url,
+        source=source_name,
+        author=article.author,
+        published_at=article.published_at.isoformat() if article.published_at else None,
+        summary=article.summary,
+        key_points=json_loads_field(article.key_points) or [],
+        entities=json_loads_field(article.entities) or [],
+        sentiment=article.sentiment,
+        importance=article.importance,
+        primary_category=primary_cat,
+        secondary_category=secondary_cat,
+        tags=tags,
+        mindmap=article.mindmap,
+        status=article.status,
+        created_at=article.created_at.isoformat() if article.created_at else None,
+    )
 
 
 @router.get("")
@@ -33,7 +76,7 @@ def list_articles(
 
     total = query.count()
     articles = query.order_by(Article.created_at.desc()).offset(offset).limit(limit).all()
-    return {"total": total, "items": articles}
+    return {"total": total, "items": [_article_to_response(db, a) for a in articles]}
 
 
 @router.get("/{article_id}")
@@ -41,7 +84,7 @@ def get_article(article_id: int, db: Session = Depends(get_db)):
     article = db.query(Article).filter(Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    return article
+    return _article_to_response(db, article)
 
 
 @router.delete("/{article_id}")
@@ -62,7 +105,7 @@ def get_related_articles(article_id: int, db: Session = Depends(get_db)):
     ).all()
     related_ids = [e.target_article_id for e in edges]
     articles = db.query(Article).filter(Article.id.in_(related_ids)).all()
-    return articles
+    return [_article_to_response(db, a) for a in articles]
 
 
 @router.post("/{article_id}/correct")
@@ -79,11 +122,17 @@ def correct_article(article_id: int, correction: CorrectionCreate, db: Session =
     )
     db.add(corr)
 
-    # Apply correction to article
+    # Apply correction to article with type safety
     if correction.field == "primary_category":
-        article.primary_category_id = correction.corrected_value
+        try:
+            article.primary_category_id = int(correction.corrected_value)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="primary_category must be a valid integer category ID")
     elif correction.field == "secondary_category":
-        article.secondary_category_id = correction.corrected_value
+        try:
+            article.secondary_category_id = int(correction.corrected_value)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="secondary_category must be a valid integer category ID")
 
     db.commit()
     return {"ok": True}

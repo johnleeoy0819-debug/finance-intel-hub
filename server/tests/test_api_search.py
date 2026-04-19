@@ -19,7 +19,7 @@ def test_fulltext_search_with_results(client, db):
     assert response.status_code == 200
     data = response.json()
     assert len(data["items"]) == 1
-    assert data["items"][0]["title"] == "Hello World"
+    assert data["items"][0]["article"]["title"] == "Hello World"
 
 
 def test_search_missing_query(client):

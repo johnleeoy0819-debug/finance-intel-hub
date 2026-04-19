@@ -1,6 +1,6 @@
 """Pydantic request/response schemas for API validation."""
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ArticleListParams(BaseModel):
@@ -9,6 +9,28 @@ class ArticleListParams(BaseModel):
     status: Optional[str] = None
     limit: int = Field(default=50, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+
+
+class ArticleResponse(BaseModel):
+    id: int
+    title: str
+    url: Optional[str] = None
+    source: Optional[str] = None
+    author: Optional[str] = None
+    published_at: Optional[str] = None
+    summary: Optional[str] = None
+    key_points: Optional[List[str]] = None
+    entities: Optional[List[str]] = None
+    sentiment: Optional[str] = None
+    importance: Optional[str] = None
+    primary_category: Optional[str] = None
+    secondary_category: Optional[str] = None
+    tags: List[str] = []
+    mindmap: Optional[str] = None
+    status: str
+    created_at: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CorrectionCreate(BaseModel):
@@ -39,5 +61,5 @@ class FeedbackCreate(BaseModel):
     skill_name: Optional[str] = "econ-master"
     query: str = Field(..., min_length=1)
     response_summary: Optional[str] = None
-    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    rating: Optional[int] = Field(default=None, ge=-1, le=1)
     comment: Optional[str] = None

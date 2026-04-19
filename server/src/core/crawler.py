@@ -267,7 +267,7 @@ def crawl_source(source_id: int) -> list[int]:
     """Crawl all articles from a source. Returns list of new article IDs."""
     import feedparser
     from src.db.engine import SessionLocal
-    from src.db.models import Article, Source
+    from src.db.models import Article, Source, KnowledgeEdge
     from src.core.processor import ArticleProcessor
 
     db = SessionLocal()
@@ -311,6 +311,14 @@ def crawl_source(source_id: int) -> list[int]:
             if processed.get("status") == "irrelevant":
                 continue
 
+            # Resolve category names to IDs
+            from src.core.db_utils import resolve_category_ids, save_article_tags, json_dumps_field
+            primary_id, secondary_id = resolve_category_ids(
+                db,
+                processed.get("primary_category"),
+                processed.get("secondary_category"),
+            )
+
             article = Article(
                 title=processed.get("title", result.title) or "Untitled",
                 url=url,
@@ -318,16 +326,20 @@ def crawl_source(source_id: int) -> list[int]:
                 status="completed",
                 clean_content=processed.get("clean_content", ""),
                 summary=processed.get("summary", ""),
-                key_points=processed.get("key_points", []),
-                entities=processed.get("entities", []),
+                key_points=json_dumps_field(processed.get("key_points", [])),
+                entities=json_dumps_field(processed.get("entities", [])),
                 sentiment=processed.get("sentiment", "neutral"),
                 importance=processed.get("importance", "medium"),
-                tags=processed.get("tags", []),
+                primary_category_id=primary_id,
+                secondary_category_id=secondary_id,
             )
             db.add(article)
             db.commit()
             db.refresh(article)
             new_ids.append(article.id)
+
+            # Save tags via association table
+            save_article_tags(db, article.id, processed.get("tags", []))
 
             # Build knowledge edges via AI relation analysis
             try:
@@ -341,7 +353,7 @@ def crawl_source(source_id: int) -> list[int]:
                 for rel in relations:
                     edge = KnowledgeEdge(
                         source_article_id=article.id,
-                        target_article_id=rel.get("target_article_id"),
+                        target_article_id=rel.get("article_id"),
                         relation_type=rel.get("relation_type", "theme"),
                         strength=rel.get("strength", 0.5),
                         reason=rel.get("reason", ""),

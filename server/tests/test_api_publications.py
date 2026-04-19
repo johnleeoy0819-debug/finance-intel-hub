@@ -108,3 +108,24 @@ def test_delete_publication(client, db):
 def test_delete_publication_not_found(client):
     response = client.delete("/api/publications/9999")
     assert response.status_code == 404
+
+
+def test_import_publication_duplicate_without_doi(client, db):
+    """Bug 11 fix: fallback dedup by title+authors+source when DOI is absent."""
+    existing = Publication(pub_type="arxiv", title="No DOI Paper", authors="Alice", source="arxiv")
+    db.add(existing)
+    db.commit()
+
+    with patch("src.api.publications.fetch_by_url") as mock_fetch:
+        mock_fetch.return_value = {
+            "pub_type": "arxiv",
+            "title": "No DOI Paper",
+            "authors": "Alice",
+            "source": "arxiv",
+        }
+        response = client.post(
+            "/api/publications/import",
+            params={"url": "https://arxiv.org/abs/2401.00002"},
+        )
+        assert response.status_code == 200
+        assert response.json()["created"] is False

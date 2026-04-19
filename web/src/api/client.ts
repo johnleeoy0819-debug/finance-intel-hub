@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Article, Source, UploadTask, DashboardStats } from '../types'
+import type { Article, Source, UploadTask, DashboardStats, Category, Tag } from '../types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -36,11 +36,18 @@ export const sourcesApi = {
   trigger: (id: number) => api.post<{ article_ids: number[] }>(`/crawler/trigger/${id}`).then(r => r.data),
 }
 
-export const searchApi = {
-  search: (q: string) => api.get('/search', { params: { q } }).then(r => r.data),
-  semantic: (q: string) => api.get('/search/semantic', { params: { q } }).then(r => r.data),
-  hybrid: (q: string) => api.get('/search/hybrid', { params: { q } }).then(r => r.data),
+export interface SearchResultItem {
+  article: Article
+  score?: number
+  mode: string
 }
+
+export const searchApi = {
+  search: (q: string) => api.get<{ query: string; items: SearchResultItem[]; mode: string }>('/search', { params: { q } }).then(r => r.data),
+  semantic: (q: string) => api.get<{ query: string; items: SearchResultItem[]; mode: string }>('/search/semantic', { params: { q } }).then(r => r.data),
+  hybrid: (q: string) => api.get<{ query: string; items: SearchResultItem[]; mode: string }>('/search/hybrid', { params: { q } }).then(r => r.data),
+}
+
 
 export const statsApi = {
   dashboard: () => api.get<DashboardStats>('/stats/dashboard').then(r => r.data),
@@ -104,6 +111,14 @@ export const publicationsApi = {
   get: (id: number) => api.get<{ publication: Publication; chapters: any[] }>(`/publications/${id}`).then(r => r.data),
   import: (url: string) => api.post<{ publication: Publication; created: boolean }>('/publications/import', null, { params: { url } }).then(r => r.data),
   delete: (id: number) => api.delete(`/publications/${id}`),
+}
+
+export const categoriesApi = {
+  list: () => api.get<Category[]>('/categories').then(r => r.data),
+}
+
+export const tagsApi = {
+  list: (q?: string) => api.get<Tag[]>('/tags', { params: { q } }).then(r => r.data),
 }
 
 export const skillApi = {

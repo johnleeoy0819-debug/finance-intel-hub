@@ -52,11 +52,40 @@ export interface UploadTask {
   created_at: string
 }
 
+export interface TrendPoint {
+  date: string
+  count: number
+}
+
+export interface SentimentDist {
+  sentiment: string
+  count: number
+}
+
+export interface CategoryDist {
+  category_id: number
+  name: string
+  count: number
+}
+
+export interface RecentArticle {
+  id: number
+  title: string
+  sentiment: string
+  created_at: string
+}
+
 export interface DashboardStats {
+  total_count: number
   today_count: number
   week_count: number
   pending_count: number
   source_count: number
+  edge_count: number
+  trend: TrendPoint[]
+  sentiment_distribution: SentimentDist[]
+  category_distribution: CategoryDist[]
+  recent_articles: RecentArticle[]
 }
 
 export interface GraphNode {

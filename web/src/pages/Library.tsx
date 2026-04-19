@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
-import { articlesApi, searchApi } from '../api/client'
+import { articlesApi, searchApi, categoriesApi } from '../api/client'
 import ArticleCard from '../components/ArticleCard'
 import SearchBar, { type SearchMode } from '../components/SearchBar'
 import CategoryTree from '../components/CategoryTree'
@@ -19,6 +19,7 @@ export default function Library() {
   const selectedCategory = useStore((s) => s.selectedCategory)
   const setSelectedCategory = useStore((s) => s.setSelectedCategory)
   const categories = useStore((s) => s.categories)
+  const setCategories = useStore((s) => s.setCategories)
   const [page, setPage] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -36,6 +37,12 @@ export default function Library() {
       .finally(() => setLoading(false))
   }, [selectedCategory, page, setArticles])
 
+  useEffect(() => {
+    categoriesApi.list()
+      .then(setCategories)
+      .catch((err) => console.error('Failed to load categories:', err.message))
+  }, [setCategories])
+
   const handleSearch = (q: string, mode: SearchMode) => {
     setError(null)
     setLoading(true)
@@ -44,15 +51,22 @@ export default function Library() {
 
     if (mode === 'fulltext') {
       searchApi.search(q)
-        .then((r: any) => { setSearchResults(null); setArticles(r.items || [], r.items?.length || 0) })
+        .then((r) => {
+          const items: SearchResult[] = (r.items || []).map((item) => ({
+            article: item.article,
+            score: item.score ?? undefined,
+          }))
+          setSearchResults(items)
+          setArticles(items.map((i) => i.article), items.length)
+        })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false))
     } else if (mode === 'semantic') {
       searchApi.semantic(q)
-        .then((r: any) => {
-          const items: SearchResult[] = (r.items || []).map((item: any) => ({
+        .then((r) => {
+          const items: SearchResult[] = (r.items || []).map((item) => ({
             article: item.article,
-            score: item.score,
+            score: item.score ?? undefined,
           }))
           setSearchResults(items)
           setArticles([], items.length)
@@ -61,7 +75,14 @@ export default function Library() {
         .finally(() => setLoading(false))
     } else {
       searchApi.hybrid(q)
-        .then((r: any) => { setSearchResults(null); setArticles(r.items || [], r.items?.length || 0) })
+        .then((r) => {
+          const items: SearchResult[] = (r.items || []).map((item) => ({
+            article: item.article,
+            score: item.score ?? undefined,
+          }))
+          setSearchResults(items)
+          setArticles(items.map((i) => i.article), items.length)
+        })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false))
     }

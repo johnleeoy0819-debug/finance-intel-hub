@@ -1,12 +1,26 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional, Dict
 
 from src.db.engine import get_db
 from src.db.models import Article
 from src.core.vector_store import VectorStore
+from src.api.articles import _article_to_response
 
 router = APIRouter()
+
+
+def _search_items(db: Session, articles: List[Article], mode: str, scores: Optional[Dict[int, float]] = None):
+    """Uniform search result wrapper."""
+    items = []
+    for a in articles:
+        item = {
+            "article": _article_to_response(db, a),
+            "score": round(scores.get(a.id, 0), 4) if scores else None,
+            "mode": mode,
+        }
+        items.append(item)
+    return items
 
 
 @router.get("")
@@ -39,7 +53,7 @@ def fulltext_search(q: str = Query(..., min_length=1), limit: int = Query(defaul
     # Preserve order from FTS5 rank
     article_map = {a.id: a for a in articles}
     ordered = [article_map[r.id] for r in results if r.id in article_map]
-    return {"query": q, "items": ordered, "mode": "fulltext"}
+    return {"query": q, "items": _search_items(db, ordered, "fulltext"), "mode": "fulltext"}
 
 
 @router.get("/semantic")
@@ -55,15 +69,9 @@ def semantic_search(q: str = Query(..., min_length=1), limit: int = Query(defaul
     article_map = {a.id: a for a in articles}
 
     # Preserve similarity order and inject distance score
-    items = []
-    for h in hits:
-        article = article_map.get(h["article_id"])
-        if article:
-            items.append({
-                "article": article,
-                "score": round(h["distance"] or 0, 4),
-            })
-    return {"query": q, "items": items, "mode": "semantic"}
+    scores = {h["article_id"]: h.get("distance", 0) for h in hits}
+    ordered = [article_map[h["article_id"]] for h in hits if h["article_id"] in article_map]
+    return {"query": q, "items": _search_items(db, ordered, "semantic", scores), "mode": "semantic"}
 
 
 @router.get("/hybrid")
@@ -90,6 +98,7 @@ def hybrid_search(q: str = Query(..., min_length=1), limit: int = Query(default=
     vs = VectorStore()
     sem_results = vs.search(q, limit=limit)
     sem_ids = {h["article_id"]: i for i, h in enumerate(sem_results)}
+    sem_scores = {h["article_id"]: h.get("distance", 0) for h in sem_results}
 
     # Merge: take union, score = min(fts_rank, semantic_rank)
     all_ids = set(fts_ids.keys()) | set(sem_ids.keys())
@@ -108,5 +117,6 @@ def hybrid_search(q: str = Query(..., min_length=1), limit: int = Query(default=
         scored.append((combined, aid))
 
     scored.sort()
-    items = [article_map[aid] for _, aid in scored if aid in article_map]
-    return {"query": q, "items": items[:limit], "mode": "hybrid"}
+    ordered = [article_map[aid] for _, aid in scored if aid in article_map]
+    scores = {aid: sem_scores.get(aid, 0) for aid in all_ids}
+    return {"query": q, "items": _search_items(db, ordered[:limit], "hybrid", scores), "mode": "hybrid"}

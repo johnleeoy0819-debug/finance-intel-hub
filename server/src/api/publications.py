@@ -48,10 +48,20 @@ def import_publication(url: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch metadata: {e}")
 
-    # Check for duplicate by DOI or source
-    existing = db.query(Publication).filter(
-        (Publication.doi == meta.get("doi")) if meta.get("doi") else False
-    ).first()
+    # Check for duplicate: DOI first, then title + authors fallback
+    existing = None
+    if meta.get("doi"):
+        existing = db.query(Publication).filter(Publication.doi == meta.get("doi")).first()
+    if not existing:
+        title = meta.get("title", "")
+        authors = meta.get("authors", "")
+        source = meta.get("source", "")
+        if title:
+            existing = db.query(Publication).filter(
+                Publication.title == title,
+                Publication.authors == authors,
+                Publication.source == source,
+            ).first()
     if existing:
         return {"publication": existing, "created": False}
 

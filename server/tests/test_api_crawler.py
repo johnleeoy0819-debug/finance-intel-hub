@@ -101,3 +101,32 @@ def test_trigger_crawl_not_found(client):
     with patch("src.api.crawler.crawl_source"):
         response = client.post("/api/crawler/trigger/9999")
         assert response.status_code == 404
+
+
+def test_crawl_source_saves_tags_and_categories(db):
+    """Bug 2/4/5 fix: verify category resolution, tag saving, and JSON serialization."""
+    from src.core.db_utils import resolve_category_ids, save_article_tags, json_dumps_field
+    from src.db.models import Article, Tag, ArticleTag, Category
+
+    cat = Category(name="TestCat", slug="test-cat")
+    db.add(cat)
+    db.commit()
+
+    # Test category resolution
+    primary_id, secondary_id = resolve_category_ids(db, "TestCat", None)
+    assert primary_id == cat.id
+    assert secondary_id is None
+
+    # Test JSON serialization
+    assert json_dumps_field(["a", "b"]) == '["a", "b"]'
+    assert json_dumps_field(None) is None
+
+    # Test tag saving
+    article = Article(title="Tag Test", status="completed")
+    db.add(article)
+    db.commit()
+
+    save_article_tags(db, article.id, ["tagA", "tagB"])
+    tags = db.query(Tag).join(ArticleTag).filter(ArticleTag.article_id == article.id).all()
+    tag_names = {t.name for t in tags}
+    assert tag_names == {"tagA", "tagB"}
