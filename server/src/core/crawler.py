@@ -1,58 +1,277 @@
-from typing import List, Dict, Any, Optional
+"""Smart Crawler - Triple fallback: Playwright → Jina Reader → Firecrawl."""
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import logging
+import random
+import re
+import time
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import List, Optional
 from urllib.parse import urlparse
 
-from firecrawl import FirecrawlApp
-from sqlalchemy.orm import Session
+import httpx
+import requests
+from bs4 import BeautifulSoup
 
-from src.config import settings
-from src.db.models import Source, Article
-from src.db.engine import SessionLocal
+logger = logging.getLogger(__name__)
 
 
-class FirecrawlDriver:
-    def __init__(self):
-        self.app = FirecrawlApp(api_key=settings.FIRECRAWL_API_KEY)
+@dataclass
+class CrawlResult:
+    """Unified crawl result across all drivers."""
 
-    def crawl(self, source: Source) -> List[Dict[str, Any]]:
-        """Crawl a source and return list of article dicts."""
-        config = source.config or "{}"
-        import json
-        cfg = json.loads(config) if isinstance(config, str) else config
+    url: str
+    title: str = ""
+    content: str = ""
+    html: str = ""
+    links: List[str] = field(default_factory=list)
+    driver_used: str = ""
+    status_code: int = 200
+    crawled_at: datetime = field(default_factory=datetime.utcnow)
 
-        url = cfg.get("url", source.url)
-        limit = cfg.get("limit", 10)
 
+# ────────────────────────
+# Driver 1: Playwright (Browser)
+# ────────────────────────
+class PlaywrightDriver:
+    """Headless browser extraction via Playwright."""
+
+    def __init__(self, timeout: int = 90_000):
+        self.timeout = timeout
+        self._browser = None
+        self._playwright = None
+
+    async def _get_browser(self):
+        """Lazy-init browser instance."""
+        if self._browser is None:
+            from playwright.async_api import async_playwright
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch(headless=True)
+        return self._browser
+
+    async def crawl(self, url: str) -> CrawlResult:
+        browser = await self._get_browser()
+        page = await browser.new_page()
         try:
-            result = self.app.scrape_url(url, params={"formats": ["markdown"]})
-            if not result or not result.get("markdown"):
-                return []
+            resp = await page.goto(url, wait_until="domcontentloaded", timeout=self.timeout)
+            # Wait a bit for lazy-loaded content
+            await asyncio.sleep(1.5)
+            title = await page.title()
+            html = await page.content()
+            # Extract text from article/main/body
+            text = await page.evaluate(
+                """() => {
+                    const el = document.querySelector('article') 
+                              || document.querySelector('main') 
+                              || document.querySelector('[role="main"]')
+                              || document.body;
+                    return el ? el.innerText.replace(/\\s+/g, ' ').trim() : '';
+                }"""
+            )
+            links = await page.evaluate(
+                """() => Array.from(document.querySelectorAll('a[href]'))
+                         .map(a => a.href)
+                         .filter(h => h.startsWith('http'))"""
+            )
+            return CrawlResult(
+                url=url,
+                title=title or "",
+                content=text or "",
+                html=html or "",
+                links=list(set(links))[:100],
+                driver_used="playwright",
+                status_code=resp.status if resp else 200,
+            )
+        finally:
+            await page.close()
 
-            return [{
-                "url": url,
-                "title": result.get("metadata", {}).get("title", "Untitled"),
-                "author": result.get("metadata", {}).get("author"),
-                "content": result["markdown"],
-                "published_at": result.get("metadata", {}).get("publishedDate"),
-            }]
-        except Exception as e:
-            print(f"Firecrawl error for {url}: {e}")
-            return []
+    async def close(self):
+        if self._browser:
+            await self._browser.close()
+            self._browser = None
+        if self._playwright:
+            await self._playwright.stop()
+            self._playwright = None
+
+    def __del__(self):
+        if self._browser or self._playwright:
+            try:
+                asyncio.get_event_loop().create_task(self.close())
+            except Exception:
+                pass
 
 
-def is_duplicate(url: str, title: str = "") -> bool:
-    """Check if article already exists by URL or title similarity."""
-    db = SessionLocal()
-    try:
-        # Exact URL match
-        if url and db.query(Article).filter(Article.url == url).first():
-            return True
-        return False
-    finally:
-        db.close()
+# ────────────────────────
+# Driver 2: Jina Reader (Free API)
+# ────────────────────────
+class JinaReaderDriver:
+    """https://r.jina.ai/http://URL — fast static extraction."""
+
+    JINA_ENDPOINT = "https://r.jina.ai/http://"
+
+    def crawl(self, url: str) -> CrawlResult:
+        jina_url = f"https://r.jina.ai/http://{url}"
+        r = requests.get(jina_url, timeout=30)
+        r.raise_for_status()
+        text = r.text
+
+        # Parse Jina output: Title: X\nURL Source: X\nMarkdown Content:\n...
+        title = ""
+        content = text
+        if "Markdown Content:" in text:
+            parts = text.split("Markdown Content:", 1)
+            header = parts[0]
+            content = parts[1].strip()
+            for line in header.splitlines():
+                if line.startswith("Title:"):
+                    title = line.replace("Title:", "").strip()
+
+        # Extract links from markdown
+        links = re.findall(r'\[.*?\]\((https?://[^\)]+)\)', content)
+
+        return CrawlResult(
+            url=url,
+            title=title,
+            content=content,
+            links=list(set(links))[:100],
+            driver_used="jina",
+        )
 
 
-def crawl_source(source_id: int) -> List[int]:
-    """Crawl a source and process articles. Returns list of article IDs."""
+# ────────────────────────
+# Driver 3: Firecrawl (Tertiary)
+# ────────────────────────
+class FirecrawlDriver:
+    """Existing Firecrawl API driver."""
+
+    def __init__(self, api_key: str | None = None):
+        from src.config import settings
+        self.api_key = api_key or settings.FIRECRAWL_API_KEY
+
+    def crawl(self, url: str) -> CrawlResult:
+        r = requests.post(
+            "https://api.firecrawl.dev/v1/scrape",
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            json={"url": url, "formats": ["markdown", "html"]},
+            timeout=60,
+        )
+        r.raise_for_status()
+        data = r.json().get("data", {})
+        md = data.get("markdown", "")
+        html = data.get("html", "")
+        title = data.get("metadata", {}).get("title", "")
+        links = re.findall(r'\[.*?\]\((https?://[^\)]+)\)', md)
+        return CrawlResult(
+            url=url,
+            title=title,
+            content=md,
+            html=html,
+            links=list(set(links))[:100],
+            driver_used="firecrawl",
+        )
+
+
+# ────────────────────────
+# Smart Crawler — Orchestrator
+# ────────────────────────
+class SmartCrawler:
+    """Orchestrates drivers with retry + fallback + anti-crawl delays."""
+
+    DELAY_MIN = 1.0
+    DELAY_MAX = 3.0
+    MAX_RETRIES = 3
+
+    # Default priority order
+    DEFAULT_ORDER = ["jina", "playwright", "firecrawl"]
+    # News sites: Jina first (fast), then browser
+    NEWS_ORDER = ["jina", "playwright", "firecrawl"]
+    # Academic / JS-heavy: Playwright first
+    ACADEMIC_ORDER = ["playwright", "jina", "firecrawl"]
+
+    def __init__(self):
+        self.drivers: dict[str, object] = {
+            "playwright": PlaywrightDriver(),
+            "jina": JinaReaderDriver(),
+            "firecrawl": FirecrawlDriver(),
+        }
+
+    @staticmethod
+    def _is_news_site(url: str) -> bool:
+        domain = urlparse(url).netloc.lower()
+        news_domains = [
+            "sina.com.cn", "163.com", "qq.com", "sohu.com", "ifeng.com",
+            "caijing.com.cn", "ce.cn", "stcn.com", "cs.com.cn",
+            "economist.com", "ft.com", "bloomberg.com", "reuters.com",
+            "wsj.com", "cnbc.com", "marketwatch.com",
+            "zhihu.com", "xueqiu.com", "wallstreetcn.com",
+            "36kr.com", "cls.cn", "thepaper.cn",
+        ]
+        return any(nd in domain for nd in news_domains)
+
+    @staticmethod
+    def _is_academic(url: str) -> bool:
+        domain = urlparse(url).netloc.lower()
+        return any(
+            x in domain
+            for x in ["arxiv.org", "ssrn.com", "jstor.org", "sciencedirect.com", "springer.com", "ncbi.nlm.nih.gov"]
+        )
+
+    def _select_order(self, url: str) -> list[str]:
+        if self._is_academic(url):
+            return list(self.ACADEMIC_ORDER)
+        if self._is_news_site(url):
+            return list(self.NEWS_ORDER)
+        return list(self.DEFAULT_ORDER)
+
+    def _random_delay(self):
+        delay = random.uniform(self.DELAY_MIN, self.DELAY_MAX)
+        time.sleep(delay)
+
+    async def crawl(self, url: str) -> CrawlResult:
+        order = self._select_order(url)
+        errors: list[str] = []
+
+        for driver_name in order:
+            driver = self.drivers[driver_name]
+            for attempt in range(1, self.MAX_RETRIES + 1):
+                try:
+                    self._random_delay()
+                    logger.info(f"[{driver_name}] attempt {attempt}/{self.MAX_RETRIES} for {url}")
+                    if asyncio.iscoroutinefunction(driver.crawl):
+                        result = await driver.crawl(url)
+                    else:
+                        result = driver.crawl(url)
+                    logger.info(f"[{driver_name}] success for {url}")
+                    return result
+                except Exception as e:
+                    logger.warning(f"[{driver_name}] attempt {attempt} failed: {e}")
+                    if attempt == self.MAX_RETRIES:
+                        errors.append(f"{driver_name}: {e}")
+
+        # All drivers failed
+        raise CrawlError(f"All drivers failed for {url}. Errors: {'; '.join(errors)}")
+
+    async def close(self):
+        for d in self.drivers.values():
+            if hasattr(d, "close"):
+                await d.close()
+
+
+class CrawlError(Exception):
+    pass
+
+
+# ────────────────────────
+# Source-level crawling
+# ────────────────────────
+def crawl_source(source_id: int) -> list[int]:
+    """Crawl all articles from a source. Returns list of new article IDs."""
+    import feedparser
+    from src.db.engine import SessionLocal
+    from src.db.models import Article, Source
     from src.core.processor import ArticleProcessor
 
     db = SessionLocal()
@@ -61,52 +280,87 @@ def crawl_source(source_id: int) -> List[int]:
         if not source or not source.is_active:
             return []
 
-        driver = FirecrawlDriver()
-        articles = driver.crawl(source)
+        # Collect URLs to crawl
+        urls: list[str] = []
+        feed = feedparser.parse(source.url)
+        if feed.entries:
+            urls = [entry.link for entry in feed.entries if entry.get("link")]
+        else:
+            urls = [source.url]
 
+        crawler = SmartCrawler()
         processor = ArticleProcessor()
-        article_ids = []
+        new_ids: list[int] = []
 
-        for art in articles:
-            if is_duplicate(art.get("url", ""), art.get("title", "")):
+        for url in urls:
+            if is_duplicate(url, session=db):
                 continue
 
-            result = processor.process(
-                raw_content=art["content"],
-                source_url=art.get("url", ""),
-                title=art.get("title"),
-                author=art.get("author"),
-            )
+            try:
+                loop = asyncio.new_event_loop()
+                result = loop.run_until_complete(crawler.crawl(url))
+                loop.close()
+            except Exception as e:
+                logger.warning(f"Crawl failed for {url}: {e}")
+                continue
 
-            if result.get("status") == "irrelevant":
+            if not result.content:
+                continue
+
+            # Process with AI pipeline
+            processed = processor.process(
+                raw_content=result.content,
+                source_url=url,
+                title=result.title,
+            )
+            if processed.get("status") == "irrelevant":
                 continue
 
             article = Article(
-                source_id=source.id,
-                url=art.get("url"),
-                title=result["title"],
-                author=art.get("author"),
-                published_at=art.get("published_at"),
-                clean_content=result["clean_content"],
-                summary=result["summary"],
-                key_points=json.dumps(result["key_points"], ensure_ascii=False),
-                entities=json.dumps(result["entities"], ensure_ascii=False),
-                sentiment=result["sentiment"],
-                importance=result["importance"],
+                title=processed.get("title", result.title) or "Untitled",
+                url=url,
+                source_id=source_id,
                 status="completed",
+                clean_content=processed.get("clean_content", ""),
+                summary=processed.get("summary", ""),
+                key_points=processed.get("key_points", []),
+                entities=processed.get("entities", []),
+                sentiment=processed.get("sentiment", "neutral"),
+                importance=processed.get("importance", "medium"),
+                tags=processed.get("tags", []),
             )
             db.add(article)
             db.commit()
             db.refresh(article)
-            article_ids.append(article.id)
+            new_ids.append(article.id)
 
         source.last_crawled_at = datetime.utcnow()
         db.commit()
-
-        return article_ids
+        return new_ids
     finally:
         db.close()
 
 
-from datetime import datetime
-import json
+# ────────────────────────
+# Deduplication helpers
+# ────────────────────────
+def url_hash(url: str) -> str:
+    return hashlib.sha256(url.encode()).hexdigest()[:16]
+
+
+def is_duplicate(url: str, session=None) -> bool:
+    """Check if article with this URL already exists in DB."""
+    from src.db.models import Article
+
+    if session is not None:
+        return session.query(Article).filter(Article.url == url).first() is not None
+
+    from src.db.engine import SessionLocal
+    with SessionLocal() as db:
+        return db.query(Article).filter(Article.url == url).first() is not None
+
+
+def normalize_url(url: str) -> str:
+    """Strip fragments and query params for dedup."""
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
