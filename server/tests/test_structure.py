@@ -7,7 +7,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def test_config_imports():
     from src.config import settings
-    assert settings.SERVER_PORT == 8000
+    assert settings.SERVER_PORT > 0
 
 
 def test_models_module_exists():

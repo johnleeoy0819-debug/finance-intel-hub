@@ -59,11 +59,11 @@ class AIClient:
 
         messages.append({"role": "user", "content": rendered["user"]})
 
-        response = self.client.chat.completions.create(
-            model=use_model,
-            messages=messages,
-            temperature=0.3,
-        )
+        kwargs = {"model": use_model, "messages": messages}
+        # Kimi K2.5 uses fixed temperature; passing custom value errors out
+        if "kimi-k2" not in use_model:
+            kwargs["temperature"] = 0.3
+        response = self.client.chat.completions.create(**kwargs)
 
         return response.choices[0].message.content
 

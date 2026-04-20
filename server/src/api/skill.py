@@ -103,11 +103,10 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query},
         ]
-        response = ai.client.chat.completions.create(
-            model=settings.OPENAI_MODEL_FAST,
-            messages=messages,
-            temperature=0.5,
-        )
+        kwargs = {"model": settings.OPENAI_MODEL_FAST, "messages": messages}
+        if "kimi-k2" not in settings.OPENAI_MODEL_FAST:
+            kwargs["temperature"] = 0.5
+        response = ai.client.chat.completions.create(**kwargs)
         return {
             "query": query,
             "answer": response.choices[0].message.content,
@@ -145,11 +144,10 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query},
         ]
-        response = ai.client.chat.completions.create(
-            model=settings.OPENAI_MODEL_FAST,
-            messages=messages,
-            temperature=0.5,
-        )
+        kwargs = {"model": settings.OPENAI_MODEL_FAST, "messages": messages}
+        if "kimi-k2" not in settings.OPENAI_MODEL_FAST:
+            kwargs["temperature"] = 0.5
+        response = ai.client.chat.completions.create(**kwargs)
         return {
             "query": query,
             "answer": response.choices[0].message.content,
@@ -194,11 +192,10 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         {"role": "user", "content": query},
     ]
 
-    response = ai.client.chat.completions.create(
-        model=settings.OPENAI_MODEL_FAST,
-        messages=messages,
-        temperature=0.5,
-    )
+    kwargs = {"model": settings.OPENAI_MODEL_FAST, "messages": messages}
+    if "kimi-k2" not in settings.OPENAI_MODEL_FAST:
+        kwargs["temperature"] = 0.5
+    response = ai.client.chat.completions.create(**kwargs)
     answer = response.choices[0].message.content
 
     return {
