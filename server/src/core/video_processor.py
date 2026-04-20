@@ -17,7 +17,11 @@ class VideoProcessor:
     MAX_FILE_MB = 25
 
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        whisper_key = settings.WHISPER_API_KEY or settings.OPENAI_API_KEY
+        client_kwargs = {"api_key": whisper_key}
+        if settings.WHISPER_BASE_URL:
+            client_kwargs["base_url"] = settings.WHISPER_BASE_URL
+        self.client = OpenAI(**client_kwargs)
 
     def transcribe(self, file_path: str) -> Dict[str, Any]:
         """Transcribe an audio/video file. Returns {text, segments, language}."""

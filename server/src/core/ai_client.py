@@ -8,7 +8,10 @@ from src.prompts.loader import PromptLoader
 
 class AIClient:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        client_kwargs = {"api_key": settings.OPENAI_API_KEY}
+        if settings.OPENAI_BASE_URL:
+            client_kwargs["base_url"] = settings.OPENAI_BASE_URL
+        self.client = OpenAI(**client_kwargs)
         self.loader = PromptLoader()
 
     def _get_user_rules(self) -> str:

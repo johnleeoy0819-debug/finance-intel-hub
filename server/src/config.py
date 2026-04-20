@@ -20,10 +20,18 @@ PROJECT_ROOT = _find_project_root()
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(PROJECT_ROOT / ".env"))
 
-    # AI — fail fast if missing
-    OPENAI_API_KEY: str = Field(..., min_length=1)
+    # AI — LLM calls (chat, summary, classify, etc.)
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL_PRIMARY: str = "gpt-4o"
     OPENAI_MODEL_FAST: str = "gpt-4o-mini"
+    
+    # LLM Provider: "openai" | "moonshot"
+    LLM_PROVIDER: str = "openai"
+    
+    # Whisper (audio/video transcription) — requires real OpenAI API
+    WHISPER_API_KEY: str = ""
+    WHISPER_BASE_URL: str = "https://api.openai.com/v1"
     
     # Crawler
     FIRECRAWL_API_KEY: str = ""
