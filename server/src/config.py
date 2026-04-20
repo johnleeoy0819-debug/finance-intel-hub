@@ -29,9 +29,12 @@ class Settings(BaseSettings):
     # LLM Provider: "openai" | "moonshot"
     LLM_PROVIDER: str = "openai"
     
-    # Whisper (audio/video transcription) — requires real OpenAI API
+    # Whisper (audio/video transcription)
+    # Local mode: uses openai-whisper Python package (free, no API key needed)
+    # API mode: set WHISPER_API_KEY to use OpenAI Whisper API
     WHISPER_API_KEY: str = ""
     WHISPER_BASE_URL: str = "https://api.openai.com/v1"
+    LOCAL_WHISPER_MODEL: str = "base"  # tiny/base/small/medium/large
     
     # Crawler
     FIRECRAWL_API_KEY: str = ""

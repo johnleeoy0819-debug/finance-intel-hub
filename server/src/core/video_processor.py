@@ -1,59 +1,92 @@
-"""Video/audio transcription via OpenAI Whisper API."""
+"""Video/audio transcription via local Whisper (openai-whisper).
+
+NOTE: This module uses local Whisper for zero-cost transcription.
+      No ffmpeg required — audio loading is patched to use soundfile + scipy.
+      To switch to OpenAI Whisper API (for commercial use):
+      1. Set WHISPER_API_KEY in .env
+      2. Restore the OpenAI-based transcribe() implementation
+"""
 import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
+import numpy as np
+import soundfile as sf
+from scipy import signal
+
+# Patch whisper.audio.load_audio to bypass ffmpeg requirement
+import whisper as _whisper
+import whisper.audio as _whisper_audio
+
+_orig_load_audio = _whisper_audio.load_audio
+
+
+def _patched_load_audio(file: str, sr: int = 16000) -> np.ndarray:
+    """Load audio using soundfile + scipy, no ffmpeg needed."""
+    audio, orig_sr = sf.read(file, dtype="float32")
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    if orig_sr != sr:
+        num_samples = int(len(audio) * sr / orig_sr)
+        audio = signal.resample(audio, num_samples)
+    return audio
+
+
+_whisper_audio.load_audio = _patched_load_audio
+
 from src.config import settings
 from src.core.db_utils import json_dumps_field
 
 logger = logging.getLogger(__name__)
 
+# Load local Whisper model once at module level.
+# Model sizes: tiny < base < small < medium < large
+# For production accuracy, consider "small" or "medium".
+# For commercial API mode, delete this and use OpenAI client instead.
+_WHISPER_MODEL_NAME = getattr(settings, "LOCAL_WHISPER_MODEL", "base")
+_whisper_model = None
+
+
+def _get_whisper_model():
+    """Lazy-load local Whisper model."""
+    global _whisper_model
+    if _whisper_model is None:
+        logger.info(f"Loading local Whisper model: {_WHISPER_MODEL_NAME}")
+        _whisper_model = _whisper.load_model(_WHISPER_MODEL_NAME)
+    return _whisper_model
+
 
 class VideoProcessor:
-    """Transcribe audio/video files using Whisper and convert to article text."""
+    """Transcribe audio/video files using local Whisper and convert to article text."""
 
-    WHISPER_MODEL = "whisper-1"
     MAX_FILE_MB = 25
 
-    def __init__(self):
-        whisper_key = settings.WHISPER_API_KEY or settings.OPENAI_API_KEY
-        client_kwargs = {"api_key": whisper_key}
-        if settings.WHISPER_BASE_URL:
-            client_kwargs["base_url"] = settings.WHISPER_BASE_URL
-        self.client = OpenAI(**client_kwargs)
-
     def transcribe(self, file_path: str) -> Dict[str, Any]:
-        """Transcribe an audio/video file. Returns {text, segments, language}."""
+        """Transcribe an audio/video file locally. Returns {text, segments, language}."""
         import os
+
         size_mb = os.path.getsize(file_path) / (1024 * 1024)
         if size_mb > self.MAX_FILE_MB:
             raise ValueError(f"File too large: {size_mb:.1f}MB. Max: {self.MAX_FILE_MB}MB")
 
-        logger.info(f"Transcribing {file_path} ({size_mb:.1f}MB)")
-        with open(file_path, "rb") as audio:
-            transcript = self.client.audio.transcriptions.create(
-                model=self.WHISPER_MODEL,
-                file=audio,
-                language="zh",
-                response_format="verbose_json",
-            )
+        logger.info(f"Transcribing {file_path} ({size_mb:.1f}MB) with local Whisper")
+        model = _get_whisper_model()
+        result = model.transcribe(file_path, language="zh")
 
         segments = []
-        if hasattr(transcript, "segments") and transcript.segments:
-            segments = [
+        for seg in result.get("segments", []):
+            segments.append(
                 {
-                    "start": s.start,
-                    "end": s.end,
-                    "text": s.text,
+                    "start": round(seg["start"], 2),
+                    "end": round(seg["end"], 2),
+                    "text": seg["text"].strip(),
                 }
-                for s in transcript.segments
-            ]
+            )
 
         return {
-            "text": transcript.text,
+            "text": result["text"].strip(),
             "segments": segments,
-            "language": getattr(transcript, "language", "zh"),
+            "language": result.get("language", "zh"),
         }
 
     def process_video_upload(self, task_id: int, file_path: str, original_filename: str) -> Dict[str, Any]:
