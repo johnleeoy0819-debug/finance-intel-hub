@@ -1,7 +1,7 @@
 version: 1
 name: publication_parser
 description: 对书籍章节或论文进行深度解析
-model: gpt-4o
+model: kimi-k2.5
 inputs:
   - name: content
     required: true

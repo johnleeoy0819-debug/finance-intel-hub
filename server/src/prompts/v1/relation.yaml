@@ -1,7 +1,7 @@
 version: 1
 name: relation_analyzer
 description: 分析文章与已有知识库文章之间的关联
-model: gpt-4o
+model: kimi-k2.5
 inputs:
   - name: current_title
     required: true

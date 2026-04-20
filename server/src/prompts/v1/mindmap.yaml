@@ -1,7 +1,7 @@
 version: 1
 name: mindmap_generator
 description: 将文章转化为思维导图层级结构
-model: gpt-4o-mini
+model: kimi-k2.5
 inputs:
   - name: title
     required: true

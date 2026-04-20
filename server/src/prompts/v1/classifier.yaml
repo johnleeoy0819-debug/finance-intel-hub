@@ -1,7 +1,7 @@
 version: 1
 name: article_classifier
 description: 将文章归入预定义二级分类体系
-model: gpt-4o-mini
+model: kimi-k2.5
 inputs:
   - name: title
     required: true

@@ -1,7 +1,7 @@
 version: 1
 name: video_structurer
 description: 将视频转录文本结构化为可阅读的知识文档
-model: gpt-4o
+model: kimi-k2.5
 inputs:
   - name: transcript_segments
     required: true

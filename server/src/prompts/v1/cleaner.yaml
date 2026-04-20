@@ -1,7 +1,7 @@
 version: 1
 name: content_cleaner
 description: 从原始网页中提取纯净的财经文章正文
-model: gpt-4o-mini
+model: kimi-k2.5
 inputs:
   - name: raw_content
     required: true

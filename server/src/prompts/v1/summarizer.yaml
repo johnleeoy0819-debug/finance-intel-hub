@@ -1,7 +1,7 @@
 version: 1
 name: article_summarizer
 description: 生成财经文章的结构化摘要
-model: gpt-4o
+model: kimi-k2.5
 inputs:
   - name: clean_content
     required: true
